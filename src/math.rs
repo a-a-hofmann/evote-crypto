@@ -12,7 +12,7 @@ use num_traits::{One, Zero};
 ///
 pub fn mod_inverse(a: &BigInt, m: &BigInt) -> Option<BigInt> {
     let (g, x, _) = extended_gcd(a.clone(), m.clone());
-    return if g != BigInt::one() {
+    if g != BigInt::one() {
         None
     } else {
         // actually use the modulus instead of the remainder
@@ -20,15 +20,15 @@ pub fn mod_inverse(a: &BigInt, m: &BigInt) -> Option<BigInt> {
         // -> https://stackoverflow.com/questions/31210357/is-there-a-modulus-not-remainder-function-operation
         let modulus: BigInt = (x % m.clone()) + m;
         Some(modulus)
-    };
+    }
 }
 
 fn extended_gcd(a: BigInt, b: BigInt) -> (BigInt, BigInt, BigInt) {
     assert!(a < b);
-    return if a == BigInt::zero() {
+    if a == BigInt::zero() {
         (b, BigInt::zero(), BigInt::one())
     } else {
         let (g, x, y) = extended_gcd(b.clone() % a.clone(), a.clone());
-        (g, y - (b / a) * x.clone(), x.clone())
-    };
+        (g, y - (b / a) * x.clone(), x)
+    }
 }

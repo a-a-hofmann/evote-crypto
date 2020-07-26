@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
+#[allow(clippy::many_single_char_names)]
 mod math;
+#[allow(clippy::many_single_char_names)]
 pub mod rsa;
 
 #[cfg(test)]
