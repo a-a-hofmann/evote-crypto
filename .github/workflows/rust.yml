@@ -28,6 +28,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
     - name: Build
       run: |
+        rustup update nightly
         rustup target add wasm32-unknown-unknown --toolchain nightly
         cargo +nightly build --verbose --release --target wasm32-unknown-unknown
     - name: Run tests
