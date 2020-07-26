@@ -8,6 +8,7 @@ use num_traits::{One, Zero};
 ///
 /// ## Credits
 /// Inspired by [simon-andrews/rust-modinverse](https://github.com/simon-andrews/rust-modinverse)
+/// Found in [crypto-rs](https://github.com/provotum/crypto-rs/blob/master/src/arithmetic/mod_inverse.rs)
 ///
 pub fn mod_inverse(a: &BigInt, m: &BigInt) -> Option<BigInt> {
     let (g, x, _) = extended_gcd(a.clone(), m.clone());
