@@ -16,13 +16,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: rust-toolchain
-      uses: actions-rs/toolchain@v1.0.6
+    - uses: actions-rs/toolchain@v1.0.6
       with:
         # Rust toolchain name
         toolchain: nightly
+        override: true
         # Target triple to install for this toolchain
-        target: wasm32-unknown-unknown
+        target: wasm32-unknown-unknown, x86_64-apple-darwin
+        components: rustfmt, clippy
     - name: Cache
       uses: actions/cache@v2.1.0
       with:
@@ -34,6 +35,8 @@ jobs:
         # An explicit key for restoring and saving the cache
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Build
-      run: cargo build --verbose --release --target wasm32-unknown-unknown
+      run: |
+        rustup target add wasm32-unknown-unknown --toolchain nightly
+        cargo +nightly build --verbose --release --target wasm32-unknown-unknown
     - name: Run tests
       run: cargo test --verbose
