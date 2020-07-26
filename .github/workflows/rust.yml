@@ -15,25 +15,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Cache
-      uses: actions/cache@v2.1.0
-      with:
-        # A list of files, directories, and wildcard patterns to cache and restore
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        # An explicit key for restoring and saving the cache
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-    - name: Build
-      run: |
-        rustup update nightly
-        rustup target add wasm32-unknown-unknown --toolchain nightly
-        cargo +nightly build --verbose --release --target wasm32-unknown-unknown
-    - name: Run tests
-      run: cargo test --verbose
-      
+      - uses: actions/checkout@v2
+      - name: Cache
+        uses: actions/cache@v2.1.0
+        with:
+          # A list of files, directories, and wildcard patterns to cache and restore
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # An explicit key for restoring and saving the cache
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+      - name: Build
+        run: |
+          rustup update nightly
+          rustup target add wasm32-unknown-unknown --toolchain nightly
+          cargo +nightly build --verbose --release --target wasm32-unknown-unknown
+      - name: Run tests
+        run: cargo test --verbose --all-features
+
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-               
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest

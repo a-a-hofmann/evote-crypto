@@ -1,11 +1,12 @@
-extern crate num_traits;
-
 use core::ops::{Mul, Sub};
 
 use num_bigint::BigInt;
 use num_integer::Integer;
 
 use crate::math::mod_inverse;
+
+#[cfg(feature = "std")]
+pub use self::std_support::*;
 
 pub struct RSAPublicKey {
     pub n: BigInt,
@@ -48,6 +49,41 @@ impl RSA {
 
     pub fn decrypt(cipher_text: &BigInt, private_key: &RSAPrivateKey) -> BigInt {
         BigInt::modpow(cipher_text, &private_key.d, &private_key.n)
+    }
+}
+
+#[cfg(feature = "std")]
+mod std_support {
+    use std::vec::Vec;
+
+    use num_bigint::{BigInt, Sign};
+
+    use super::*;
+
+    impl RSA {
+        pub fn encrypt_vec(message: &Vec<u8>, public_key: &RSAPublicKey) -> BigInt {
+            let message = BigInt::from_bytes_be(Sign::Plus, message);
+            Self::encrypt(&message, public_key)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use num_bigint::BigInt;
+
+        use super::*;
+
+        #[test]
+        fn encrypt_vec() {
+            let original_message = BigInt::from(65);
+            let (_, data_vec) = original_message.to_bytes_be();
+
+            let (public_key, private_key) = RSA::new_key_pair();
+
+            let cipher_text = RSA::encrypt_vec(&data_vec, &public_key);
+            let message = RSA::decrypt(&cipher_text, &private_key);
+            assert_eq!(message, original_message);
+        }
     }
 }
 

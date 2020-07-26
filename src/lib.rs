@@ -1,4 +1,11 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+//! Took from here how to work with no_std and std
+//! https://github.com/KodrAus/rust-no-std
+
+#![no_std]
+
+#[cfg(any(feature = "std", test))]
+#[macro_use]
+extern crate std;
 
 #[allow(clippy::many_single_char_names)]
 mod math;
