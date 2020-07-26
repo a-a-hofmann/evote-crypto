@@ -35,15 +35,9 @@ impl RSA {
 
         let d = mod_inverse(&e, &lambda).expect("Cannot compute mod_inverse");
 
-        let public_key = RSAPublicKey {
-            n: n.clone(),
-            e,
-        };
+        let public_key = RSAPublicKey { n: n.clone(), e };
 
-        let private_key = RSAPrivateKey {
-            n,
-            d,
-        };
+        let private_key = RSAPrivateKey { n, d };
 
         (public_key, private_key)
     }
@@ -56,7 +50,6 @@ impl RSA {
         BigInt::modpow(cipher_text, &private_key.d, &private_key.n)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
