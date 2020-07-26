@@ -1,3 +1,5 @@
+![Rust](https://github.com/a-a-hofmann/evote-crypto/workflows/Rust/badge.svg)
+
 # evote-crypto
 Simple rust crypto library for my thesis. Only includes text-book version of crypto algorithms.
 
