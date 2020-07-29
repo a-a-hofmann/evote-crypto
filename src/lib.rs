@@ -11,6 +11,8 @@ extern crate std;
 mod math;
 #[allow(clippy::many_single_char_names)]
 pub mod rsa;
+#[allow(clippy::many_single_char_names)]
+pub mod elgamal;
 
 #[cfg(test)]
 mod tests {
