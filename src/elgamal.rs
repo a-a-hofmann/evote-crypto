@@ -96,10 +96,6 @@ impl ElGamal {
             }
 
             i += 1;
-
-            if i > private_key.params.p.clone() {
-                panic!("Failed to find exponent!")
-            }
         }
     }
 
