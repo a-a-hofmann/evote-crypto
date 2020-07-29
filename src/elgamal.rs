@@ -71,7 +71,7 @@ impl ElGamal {
 
         let c = generator.modpow(&nonce, &modulus);
         let public_key_to_nonce = public_key.h.modpow(&nonce, &modulus);
-        let g_to_m = generator.clone().modpow(&message, &modulus);
+        let g_to_m = generator.modpow(&message, &modulus);
         let d = g_to_m.mul(public_key_to_nonce) % modulus;
         (c, d)
     }
@@ -85,7 +85,7 @@ impl ElGamal {
 
         let generator = private_key.params.g.clone();
 
-        let g_to_m = c.modpow(&exponent, &modulus.clone()).mul(d.clone()) % modulus.clone();
+        let g_to_m = c.modpow(&exponent, &modulus).mul(d) % modulus.clone();
         let mut i = BigInt::zero();
 
         loop {
