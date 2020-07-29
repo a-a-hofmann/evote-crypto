@@ -3,6 +3,8 @@ use core::ops::Mul;
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
 
+use crate::math::mod_inverse;
+
 pub struct ElGamalPublicKey {
     pub params: ElGamalParameters,
     pub h: BigInt,
@@ -13,7 +15,7 @@ pub struct ElGamalPrivateKey {
     pub x: BigInt,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ElGamalParameters {
     /// Modulus
     pub p: BigInt,
@@ -38,6 +40,13 @@ impl ElGamalPublicKey {
         ElGamalPublicKey {
             h,
             params: private_key.params.clone(),
+        }
+    }
+
+    pub fn combine(&self, other: &ElGamalPublicKey) -> Self {
+        ElGamalPublicKey {
+            h: &self.h * &other.h % &self.params.p,
+            params: self.params.clone(),
         }
     }
 }
@@ -81,11 +90,11 @@ impl ElGamal {
 
         let modulus = private_key.params.p.clone();
         let sk = private_key.x.clone();
-        let exponent = (modulus.clone() - sk - 1) % modulus.clone();
 
         let generator = private_key.params.g.clone();
-
-        let g_to_m = c.modpow(&exponent, &modulus).mul(d) % modulus.clone();
+        let c_to_sk = c.modpow(&sk, &modulus);
+        let c_inverse = mod_inverse(&c_to_sk, &modulus).expect("Cannot find mod inverse");
+        let g_to_m = c_inverse.mul(d) % modulus.clone();
         let mut i = BigInt::zero();
 
         loop {
@@ -103,6 +112,50 @@ impl ElGamal {
         let (c1, d1) = cipher1;
         let (c2, d2) = cipher2;
         (c1 * c2, d1 * d2)
+    }
+
+    pub fn combine_shares(shares: &[&BigInt], params: &ElGamalParameters) -> BigInt {
+        let mut product = BigInt::from(1);
+        for &share in shares.iter() {
+            product *= share;
+        }
+
+        product % &params.p
+    }
+
+    pub fn decrypt_share(cipher: &(BigInt, BigInt), private_key: &ElGamalPrivateKey) -> BigInt {
+        let sk = &private_key.x;
+        let modulus = &private_key.params.p;
+        let (c, _) = cipher;
+        c.modpow(sk, modulus)
+    }
+
+    pub fn decrypt_shares(
+        cipher: (BigInt, BigInt),
+        decrypted_shares: &[&BigInt],
+        params: &ElGamalParameters,
+    ) -> BigInt {
+        let d_product = Self::combine_shares(decrypted_shares, params);
+        let (_, d) = cipher;
+
+        let modulus = params.p.clone();
+
+        let generator = params.g.clone();
+        let mod_inverse = mod_inverse(&d_product, &modulus).expect("Cannot compute mod inverse");
+
+        let g_to_m = mod_inverse * d % modulus.clone();
+
+        let mut i = BigInt::zero();
+
+        loop {
+            let target = generator.clone().modpow(&i, &modulus.clone());
+
+            if target.eq(&g_to_m) {
+                return i;
+            }
+
+            i += 1;
+        }
     }
 }
 
@@ -182,5 +235,79 @@ mod tests {
 
         let recovered_message = ElGamal::decrypt(encrypted_sum, &private_key);
         assert_eq!(recovered_message, sum);
+    }
+
+    #[test]
+    fn combine() {
+        let params = ElGamalParameters {
+            p: BigInt::from(2753),
+            g: BigInt::from(1035),
+        };
+
+        let public_key1 = ElGamalPublicKey {
+            h: BigInt::from(2),
+            params: params.clone(),
+        };
+
+        let public_key2 = ElGamalPublicKey {
+            h: BigInt::from(5),
+            params: params.clone(),
+        };
+
+        let pk = public_key1.combine(&public_key2);
+
+        assert_eq!(pk.h, BigInt::from(10));
+        assert_eq!(pk.params, params);
+
+        let pk = ElGamalPublicKey::combine(&public_key1, &public_key2);
+
+        assert_eq!(pk.h, BigInt::from(10));
+        assert_eq!(pk.params, params);
+    }
+
+    #[test]
+    fn combine_shares() {
+        let share1 = BigInt::from(5);
+        let share2 = BigInt::from(2);
+        let product = ElGamal::combine_shares(
+            &[&share1, &share2],
+            &ElGamalParameters {
+                p: BigInt::from(8),
+                g: BigInt::from(5),
+            },
+        );
+
+        assert_eq!(product, BigInt::from(2));
+    }
+
+    #[test]
+    fn encrypt_decrypt_distributed() {
+        let message = BigInt::from(88);
+        let params = ElGamalParameters {
+            p: BigInt::from(2753),
+            g: BigInt::from(1035),
+        };
+
+        let private_key1 = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let public_key1 = private_key1.extract_public_key();
+
+        let private_key2 = ElGamalPrivateKey::new(BigInt::from(45), params.clone());
+        let public_key2 = private_key2.extract_public_key();
+
+        let pk = ElGamalPublicKey {
+            h: public_key1.h.clone() * public_key2.h.clone() % &params.p,
+            params: params.clone(),
+        };
+
+        let c = ElGamal::encrypt(message.clone(), BigInt::from(3), &pk);
+
+        let share1 = ElGamal::decrypt_share(&c, &private_key1);
+        let share2 = ElGamal::decrypt_share(&c, &private_key2);
+
+        assert_ne!(share1, message);
+        assert_ne!(share2, message);
+
+        let recovered_message = ElGamal::decrypt_shares(c, &[&share1, &share2], &pk.params);
+        assert_eq!(message, recovered_message)
     }
 }
