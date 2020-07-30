@@ -332,4 +332,40 @@ mod tests {
         let recovered_message = ElGamal::decrypt_shares(c, &[&share1, &share2], &pk.params);
         assert_eq!(message, recovered_message)
     }
+
+    #[test]
+    fn encrypt_decrypt_additive_distributed() {
+        let m1 = BigInt::from(88);
+        let m2 = BigInt::from(12);
+        let params = ElGamalParameters {
+            p: BigInt::from(2753),
+            g: BigInt::from(1035),
+        };
+
+        let private_key1 = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let public_key1 = private_key1.extract_public_key();
+
+        let private_key2 = ElGamalPrivateKey::new(BigInt::from(45), params.clone());
+        let public_key2 = private_key2.extract_public_key();
+
+        let pk = ElGamalPublicKey {
+            h: public_key1.h.clone() * public_key2.h.clone() % &params.p,
+            params: params.clone(),
+        };
+
+        let c1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &pk);
+        let c2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &pk);
+        let c = ElGamal::add(c1, c2);
+
+        let share1 = ElGamal::decrypt_share(&c, &private_key1);
+        let share2 = ElGamal::decrypt_share(&c, &private_key2);
+
+        assert_ne!(share1, m1);
+        assert_ne!(share2, m1);
+        assert_ne!(share1, m2);
+        assert_ne!(share2, m2);
+
+        let recovered_message = ElGamal::decrypt_shares(c, &[&share1, &share2], &pk.params);
+        assert_eq!(m1 + m2, recovered_message)
+    }
 }
