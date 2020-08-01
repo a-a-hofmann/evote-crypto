@@ -26,5 +26,9 @@ default-features = false
 version = "^0.2"
 default-features = false
 
+[dependencies.blake2]
+version = "0.9.0"
+default-features = false
+
 [features]
 std = []

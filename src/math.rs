@@ -2,6 +2,14 @@ use num_bigint::BigInt;
 use num_traits::{One, Zero};
 
 ///
+/// Compute division in a finite field `p` of `a/b`.
+/// This equates to `a * mod_inverse(b, p)`.
+/// The `division` is modeled as a multiplication with the modular multiplicative inverse.
+pub fn mod_div(a: &BigInt, b: &BigInt, m: &BigInt) -> Option<BigInt> {
+    mod_inverse(b, m).map(|inverse| a * inverse % m)
+}
+
+///
 /// # Modular Inverse
 ///
 /// Calculates the modular inverse `a^-1 mod m`

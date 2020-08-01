@@ -3,7 +3,7 @@ use core::ops::Mul;
 use num_bigint::BigInt;
 use num_traits::{Signed, Zero};
 
-use crate::math::mod_inverse;
+use crate::math::mod_div;
 
 pub struct ElGamalPublicKey {
     pub params: ElGamalParameters,
@@ -93,8 +93,7 @@ impl ElGamal {
 
         let generator = private_key.params.g.clone();
         let c_to_sk = c.modpow(&sk, &modulus);
-        let c_inverse = mod_inverse(&c_to_sk, &modulus).expect("Cannot find mod inverse");
-        let g_to_m = c_inverse.mul(d) % modulus.clone();
+        let g_to_m = mod_div(&d, &c_to_sk, &modulus).expect("Cannot find mod inverse");
         let mut i = BigInt::zero();
 
         loop {
@@ -141,9 +140,7 @@ impl ElGamal {
         let modulus = params.p.clone();
 
         let generator = params.g.clone();
-        let mod_inverse = mod_inverse(&d_product, &modulus).expect("Cannot compute mod inverse");
-
-        let g_to_m = mod_inverse * d % modulus.clone();
+        let g_to_m = mod_div(&d, &d_product, &modulus).expect("Cannot find mod inverse");
 
         let mut i = BigInt::zero();
 
