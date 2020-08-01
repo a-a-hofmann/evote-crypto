@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 use num_traits::{One, Zero};
 
 ///
-/// Compute division in a finite field `p` of `a/b`.
+/// Compute division in a multiplicative finite field `p` of `a/b`.
 /// This equates to `a * mod_inverse(b, p)`.
 /// The `division` is modeled as a multiplication with the modular multiplicative inverse.
 pub fn mod_div(a: &BigInt, b: &BigInt, m: &BigInt) -> Option<BigInt> {
@@ -19,24 +19,37 @@ pub fn mod_div(a: &BigInt, b: &BigInt, m: &BigInt) -> Option<BigInt> {
 /// Found in [crypto-rs](https://github.com/provotum/crypto-rs/blob/master/src/arithmetic/mod_inverse.rs)
 ///
 pub fn mod_inverse(a: &BigInt, m: &BigInt) -> Option<BigInt> {
-    let (g, x, _) = extended_gcd(a.clone(), m.clone());
+    let (g, x, _) = extended_gcd(a, m);
     if g != BigInt::one() {
         None
     } else {
         // actually use the modulus instead of the remainder
         // operator "%" which behaves differently for negative values
         // -> https://stackoverflow.com/questions/31210357/is-there-a-modulus-not-remainder-function-operation
-        let modulus: BigInt = (x % m.clone()) + m;
+        let modulus: BigInt = (x % m) + m;
         Some(modulus)
     }
 }
 
-fn extended_gcd(a: BigInt, b: BigInt) -> (BigInt, BigInt, BigInt) {
+fn extended_gcd(a: &BigInt, b: &BigInt) -> (BigInt, BigInt, BigInt) {
     assert!(a < b);
-    if a == BigInt::zero() {
-        (b, BigInt::zero(), BigInt::one())
+    if *a == BigInt::zero() {
+        (b.clone(), BigInt::zero(), BigInt::one())
     } else {
-        let (g, x, y) = extended_gcd(b.clone() % a.clone(), a.clone());
+        let (g, x, y) = extended_gcd(&(b % a), &a);
         (g, y - (b / a) * x.clone(), x)
     }
+}
+
+///
+/// Solve dlog mod `modulus` by brute force:
+/// Attempts to find a value `i` such that `target = generator^i % modulus`
+///
+pub fn brute_force_dlog(target: &BigInt, generator: &BigInt, modulus: &BigInt) -> BigInt {
+    let mut i = BigInt::zero();
+
+    while &generator.modpow(&i, &modulus) != target {
+        i += 1;
+    }
+    i
 }

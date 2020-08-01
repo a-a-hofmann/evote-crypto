@@ -10,9 +10,9 @@ extern crate std;
 #[allow(clippy::many_single_char_names)]
 pub mod elgamal;
 #[allow(clippy::many_single_char_names)]
-pub mod proof;
-#[allow(clippy::many_single_char_names)]
 mod math;
+#[allow(clippy::many_single_char_names)]
+pub mod proof;
 #[allow(clippy::many_single_char_names)]
 pub mod rsa;
 

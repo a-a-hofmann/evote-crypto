@@ -2,10 +2,10 @@ use blake2::{Blake2b, Digest};
 use num_bigint::BigInt;
 
 use crate::elgamal::{ElGamalPrivateKey, ElGamalPublicKey};
-use crate::math::{mod_div};
+use crate::math::mod_div;
 
 /// Schnorr Proof - Key Generation
-/// Proves knowledge of an ElGamal private key `r` that belongs to a public key `h`
+/// Proves knowledge of an ElGamal private key `x` that belongs to a public key `h`
 pub struct SchnorrProof {
     challenge: BigInt,
     response: BigInt,
@@ -24,9 +24,9 @@ impl SchnorrProof {
         assert!(nonce < q);
         let commitment: BigInt = generator.modpow(&nonce, &modulus);
 
-        let challenge = Self::hash(&unique_id, &public_key.h, &commitment) % q.clone();
+        let challenge = Self::hash(&unique_id, &public_key.h, &commitment) % &q;
 
-        let response = (nonce + (challenge.clone() * sk) % q.clone()) % q.clone();
+        let response = (nonce + (challenge.clone() * sk) % &q) % &q;
 
         SchnorrProof {
             challenge,
@@ -44,7 +44,7 @@ impl SchnorrProof {
         let h_to_c = public_key.h.clone().modpow(&self.challenge, &modulus);
         let commitment = mod_div(&g_to_d, &h_to_c, &modulus).expect("Cannot compute mod_inverse");
 
-        let challenge = Self::hash(&unique_id, &public_key.h, &commitment) % q.clone();
+        let challenge = Self::hash(&unique_id, &public_key.h, &commitment) % &q;
 
         let lhs = generator.clone().modpow(&self.response, &modulus);
         let rhs = commitment * &public_key.h.modpow(&self.challenge, &modulus) % modulus;
@@ -57,10 +57,9 @@ impl SchnorrProof {
         hasher.update(unique_id.to_signed_bytes_be());
         hasher.update(h.to_signed_bytes_be());
         hasher.update(commitment.to_signed_bytes_be());
-        let hash = hasher.finalize();
-        let result = BigInt::from_signed_bytes_be(&*hash);
 
-        result
+        let hash = hasher.finalize();
+        BigInt::from_signed_bytes_be(&*hash)
     }
 }
 
@@ -84,7 +83,8 @@ mod tests {
 
         let private_key = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
         let public_key = private_key.extract_public_key();
-        let public_key2 = ElGamalPrivateKey::new(BigInt::from(173), params.clone()).extract_public_key();
+        let public_key2 =
+            ElGamalPrivateKey::new(BigInt::from(173), params.clone()).extract_public_key();
 
         let unique_id = BigInt::from(123456);
 

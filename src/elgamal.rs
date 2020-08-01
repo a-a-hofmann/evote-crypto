@@ -1,9 +1,9 @@
 use core::ops::Mul;
 
 use num_bigint::BigInt;
-use num_traits::{Signed, Zero};
+use num_traits::Signed;
 
-use crate::math::mod_div;
+use crate::math;
 
 pub struct ElGamalPublicKey {
     pub params: ElGamalParameters,
@@ -93,18 +93,9 @@ impl ElGamal {
 
         let generator = private_key.params.g.clone();
         let c_to_sk = c.modpow(&sk, &modulus);
-        let g_to_m = mod_div(&d, &c_to_sk, &modulus).expect("Cannot find mod inverse");
-        let mut i = BigInt::zero();
+        let g_to_m = math::mod_div(&d, &c_to_sk, &modulus).expect("Cannot find mod inverse");
 
-        loop {
-            let target = generator.clone().modpow(&i, &modulus.clone());
-
-            if target.eq(&g_to_m) {
-                return i;
-            }
-
-            i += 1;
-        }
+        math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 
     pub fn add(cipher1: (BigInt, BigInt), cipher2: (BigInt, BigInt)) -> (BigInt, BigInt) {
@@ -140,19 +131,9 @@ impl ElGamal {
         let modulus = params.p.clone();
 
         let generator = params.g.clone();
-        let g_to_m = mod_div(&d, &d_product, &modulus).expect("Cannot find mod inverse");
+        let g_to_m = math::mod_div(&d, &d_product, &modulus).expect("Cannot find mod inverse");
 
-        let mut i = BigInt::zero();
-
-        loop {
-            let target = generator.clone().modpow(&i, &modulus.clone());
-
-            if target.eq(&g_to_m) {
-                return i;
-            }
-
-            i += 1;
-        }
+        math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 }
 
