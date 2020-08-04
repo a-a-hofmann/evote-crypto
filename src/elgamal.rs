@@ -112,17 +112,28 @@ impl ElGamal {
         math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 
-    pub fn add(cipher1: (BigInt, BigInt), cipher2: (BigInt, BigInt), params: &ElGamalParameters) -> (BigInt, BigInt) {
+    pub fn add(
+        cipher1: (BigInt, BigInt),
+        cipher2: (BigInt, BigInt),
+        params: &ElGamalParameters,
+    ) -> (BigInt, BigInt) {
         let (c1, d1) = cipher1;
         let (c2, d2) = cipher2;
         (c1 * c2 % &params.p, d1 * d2 % &params.p)
     }
 
-    pub fn sub(cipher1: (BigInt, BigInt), cipher2: (BigInt, BigInt), params: &ElGamalParameters) -> (BigInt, BigInt) {
+    pub fn sub(
+        cipher1: &(BigInt, BigInt),
+        cipher2: &(BigInt, BigInt),
+        params: &ElGamalParameters,
+    ) -> (BigInt, BigInt) {
         let (c1, d1) = cipher1;
         let (c2, d2) = cipher2;
         let modulus = &params.p;
-        (mod_div(&c1, &c2, &modulus).expect(""), mod_div(&d1, &d2, &modulus).expect(""))
+        (
+            mod_div(c1, c2, modulus).unwrap(),
+            mod_div(d1, d2, modulus).unwrap(),
+        )
     }
 
     pub fn combine_shares(shares: &[&BigInt], params: &ElGamalParameters) -> BigInt {
@@ -235,7 +246,7 @@ mod tests {
         let recovered_message = ElGamal::decrypt(encrypted_sum.clone(), &private_key);
         assert_eq!(recovered_message, sum);
 
-        let sub = ElGamal::sub(encrypted_sum.clone(), cipher1.clone(), &params);
+        let sub = ElGamal::sub(&encrypted_sum, &cipher1, &params);
         let recovered_message = ElGamal::decrypt(sub, &private_key);
         assert_eq!(recovered_message, m2.clone());
     }
@@ -402,10 +413,13 @@ mod tests {
         let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
 
         let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
-        let e_minus = ElGamal::sub(cipher_plus_zero.clone(), cipher.clone(), &params);
+        let e_minus = ElGamal::sub(&cipher_plus_zero, &cipher, &params);
         assert_ne!(cipher, cipher_plus_zero);
         assert_eq!(recovered_message, message);
-        assert_eq!(ElGamal::decrypt(e_minus.clone(), &private_key), BigInt::from(0));
+        assert_eq!(
+            ElGamal::decrypt(e_minus.clone(), &private_key),
+            BigInt::from(0)
+        );
 
         // e' = E(0, alpha); alpha random
         let alpha = BigInt::from(3);
@@ -414,7 +428,12 @@ mod tests {
         let e_prime = ElGamal::encrypt(BigInt::from(0), alpha.clone(), &public_key);
 
         let zv_to_c2 = public_key.h.clone().modpow(&c2, &params.p);
-        let t2 = mod_div(&(params.g.clone().modpow(&s2, &params.p)), &zv_to_c2, &params.p).unwrap();
+        let t2 = mod_div(
+            &(params.g.clone().modpow(&s2, &params.p)),
+            &zv_to_c2,
+            &params.p,
+        )
+        .unwrap();
 
         // Challenge c random
         let c = BigInt::from(137);
@@ -439,11 +458,12 @@ mod tests {
         // E(0,β)= c1 * e_minus + e_prime
         let beta_enc = ElGamal::encrypt(BigInt::from(0), beta.clone(), &public_key);
 
-        let c1_e_minus = (e_minus.0.modpow(&c1.clone(), &params.p), e_minus.1.modpow(&c1.clone(), &params.p));
+        let c1_e_minus = (
+            e_minus.0.modpow(&c1.clone(), &params.p),
+            e_minus.1.modpow(&c1.clone(), &params.p),
+        );
         let beta_question_mark = ElGamal::add(c1_e_minus, e_prime.clone(), &params);
 
-        println!("{:?}\n{:?}", beta_enc.0.to_str_radix(16), beta_question_mark.0.to_str_radix(16));
-        println!("-----\n{:?}\n{:?}", beta_enc.1.to_str_radix(16), beta_question_mark.1.to_str_radix(16));
         assert_eq!(beta_enc, beta_question_mark);
     }
 
@@ -463,10 +483,12 @@ mod tests {
 
         println!("{}", lhs.to_str_radix(10));
 
-        let rhs = g.modpow(&zeta, &modulus).modpow(&c1, &modulus) * g.modpow(&alpha, &modulus) % &modulus;
+        let rhs =
+            g.modpow(&zeta, &modulus).modpow(&c1, &modulus) * g.modpow(&alpha, &modulus) % &modulus;
         println!("{}", rhs.to_str_radix(10));
 
-        let rhs = g.modpow(&c1, &modulus).modpow(&zeta, &modulus) * g.modpow(&alpha, &modulus) % &modulus;
+        let rhs =
+            g.modpow(&c1, &modulus).modpow(&zeta, &modulus) * g.modpow(&alpha, &modulus) % &modulus;
         println!("{}", rhs.to_str_radix(10));
 
         assert_eq!(lhs, rhs);
