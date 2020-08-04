@@ -201,7 +201,7 @@ impl ReEncryptionProof {
             e_minus.0.modpow(&self.c1, modulus),
             e_minus.1.modpow(&self.c1, modulus),
         );
-        let beta_rhs = ElGamal::add(c1_e_minus, self.e_prime.clone(), &params);
+        let beta_rhs = ElGamal::add(&c1_e_minus, &self.e_prime, &params);
 
         // Proof of knowledge of the witness zeta
         assert_eq!(beta_cipher, beta_rhs);
@@ -235,7 +235,7 @@ impl ReEncryptionProof {
             e_minus.0.modpow(&self.c1, modulus),
             e_minus.1.modpow(&self.c1, modulus),
         );
-        let beta_rhs = ElGamal::add(c1_e_minus.clone(), self.e_prime.clone(), &params);
+        let beta_rhs = ElGamal::add(&c1_e_minus, &self.e_prime, &params);
 
         // Proof of knowledge of the witness zeta
         assert_eq!(beta_cipher, beta_rhs);
@@ -315,7 +315,7 @@ mod tests {
         // Encrypt the voter's choice, create a random encryption of zero using the witness, and add it to the cipher
         let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
         let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
-        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
+        let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         // Create the random parameters used for the proof
         // Challenge c random
@@ -357,7 +357,7 @@ mod tests {
         // Encrypt the voter's choice, create a random encryption of zero using the witness, and add it to the cipher
         let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
         let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
-        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
+        let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         // Create the random parameters used for the proof
         // Challenge c random

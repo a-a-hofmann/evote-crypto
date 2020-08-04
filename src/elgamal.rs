@@ -113,8 +113,8 @@ impl ElGamal {
     }
 
     pub fn add(
-        cipher1: (BigInt, BigInt),
-        cipher2: (BigInt, BigInt),
+        cipher1: &(BigInt, BigInt),
+        cipher2: &(BigInt, BigInt),
         params: &ElGamalParameters,
     ) -> (BigInt, BigInt) {
         let (c1, d1) = cipher1;
@@ -241,7 +241,7 @@ mod tests {
 
         let cipher1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &public_key);
         let cipher2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &public_key);
-        let encrypted_sum = ElGamal::add(cipher1.clone(), cipher2.clone(), &params);
+        let encrypted_sum = ElGamal::add(&cipher1, &cipher2, &params);
 
         let recovered_message = ElGamal::decrypt(encrypted_sum.clone(), &private_key);
         assert_eq!(recovered_message, sum);
@@ -266,7 +266,7 @@ mod tests {
 
         let cipher = ElGamal::encrypt(m1.clone(), BigInt::from(3), &public_key);
         let zero_encryption = ElGamal::encrypt(BigInt::from(0), BigInt::from(13), &public_key);
-        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
+        let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
         assert_ne!(cipher, cipher_plus_zero);
@@ -379,7 +379,7 @@ mod tests {
 
         let c1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &pk);
         let c2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &pk);
-        let c = ElGamal::add(c1, c2, &params);
+        let c = ElGamal::add(&c1, &c2, &params);
 
         let share1 = ElGamal::decrypt_share(&c, &private_key1);
         let share2 = ElGamal::decrypt_share(&c, &private_key2);
@@ -410,7 +410,7 @@ mod tests {
 
         let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
         let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
-        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
+        let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
         let e_minus = ElGamal::sub(&cipher_plus_zero, &cipher, &params);
@@ -462,7 +462,7 @@ mod tests {
             e_minus.0.modpow(&c1.clone(), &params.p),
             e_minus.1.modpow(&c1.clone(), &params.p),
         );
-        let beta_question_mark = ElGamal::add(c1_e_minus, e_prime.clone(), &params);
+        let beta_question_mark = ElGamal::add(&c1_e_minus, &e_prime, &params);
 
         assert_eq!(beta_enc, beta_question_mark);
     }
