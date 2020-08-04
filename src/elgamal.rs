@@ -4,6 +4,7 @@ use num_bigint::BigInt;
 use num_traits::Signed;
 
 use crate::math;
+use crate::math::mod_div;
 
 pub struct ElGamalPublicKey {
     pub params: ElGamalParameters,
@@ -48,6 +49,19 @@ impl ElGamalPublicKey {
             h: &self.h * &other.h % &self.params.p,
             params: self.params.clone(),
         }
+    }
+
+    pub fn combine_multiple(&self, others: &[&ElGamalPublicKey]) -> Self {
+        assert!(!others.is_empty());
+
+        let mut h = self.h.clone();
+        for share in others.iter() {
+            h *= &share.h;
+        }
+        let params = self.params.clone();
+        h %= &params.p;
+
+        ElGamalPublicKey { h, params }
     }
 }
 
@@ -98,10 +112,17 @@ impl ElGamal {
         math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 
-    pub fn add(cipher1: (BigInt, BigInt), cipher2: (BigInt, BigInt)) -> (BigInt, BigInt) {
+    pub fn add(cipher1: (BigInt, BigInt), cipher2: (BigInt, BigInt), params: &ElGamalParameters) -> (BigInt, BigInt) {
         let (c1, d1) = cipher1;
         let (c2, d2) = cipher2;
-        (c1 * c2, d1 * d2)
+        (c1 * c2 % &params.p, d1 * d2 % &params.p)
+    }
+
+    pub fn sub(cipher1: (BigInt, BigInt), cipher2: (BigInt, BigInt), params: &ElGamalParameters) -> (BigInt, BigInt) {
+        let (c1, d1) = cipher1;
+        let (c2, d2) = cipher2;
+        let modulus = &params.p;
+        (mod_div(&c1, &c2, &modulus).expect(""), mod_div(&d1, &d2, &modulus).expect(""))
     }
 
     pub fn combine_shares(shares: &[&BigInt], params: &ElGamalParameters) -> BigInt {
@@ -209,10 +230,14 @@ mod tests {
 
         let cipher1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &public_key);
         let cipher2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &public_key);
-        let encrypted_sum = ElGamal::add(cipher1, cipher2);
+        let encrypted_sum = ElGamal::add(cipher1.clone(), cipher2.clone(), &params);
 
-        let recovered_message = ElGamal::decrypt(encrypted_sum, &private_key);
+        let recovered_message = ElGamal::decrypt(encrypted_sum.clone(), &private_key);
         assert_eq!(recovered_message, sum);
+
+        let sub = ElGamal::sub(encrypted_sum.clone(), cipher1.clone(), &params);
+        let recovered_message = ElGamal::decrypt(sub, &private_key);
+        assert_eq!(recovered_message, m2.clone());
     }
 
     #[test]
@@ -230,7 +255,7 @@ mod tests {
 
         let cipher = ElGamal::encrypt(m1.clone(), BigInt::from(3), &public_key);
         let zero_encryption = ElGamal::encrypt(BigInt::from(0), BigInt::from(13), &public_key);
-        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone());
+        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
 
         let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
         assert_ne!(cipher, cipher_plus_zero);
@@ -254,6 +279,11 @@ mod tests {
             params: params.clone(),
         };
 
+        let public_key3 = ElGamalPublicKey {
+            h: BigInt::from(7),
+            params: params.clone(),
+        };
+
         let pk = public_key1.combine(&public_key2);
 
         assert_eq!(pk.h, BigInt::from(10));
@@ -262,6 +292,11 @@ mod tests {
         let pk = ElGamalPublicKey::combine(&public_key1, &public_key2);
 
         assert_eq!(pk.h, BigInt::from(10));
+        assert_eq!(pk.params, params);
+
+        let pk: ElGamalPublicKey = public_key1.combine_multiple(&[&public_key2, &public_key3]);
+
+        assert_eq!(pk.h, BigInt::from(70));
         assert_eq!(pk.params, params);
     }
 
@@ -333,7 +368,7 @@ mod tests {
 
         let c1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &pk);
         let c2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &pk);
-        let c = ElGamal::add(c1, c2);
+        let c = ElGamal::add(c1, c2, &params);
 
         let share1 = ElGamal::decrypt_share(&c, &private_key1);
         let share2 = ElGamal::decrypt_share(&c, &private_key2);
@@ -345,5 +380,95 @@ mod tests {
 
         let recovered_message = ElGamal::decrypt_shares(c, &[&share1, &share2], &pk.params);
         assert_eq!(m1 + m2, recovered_message)
+    }
+
+    #[test]
+    fn re_encryption_proof() {
+        let message = BigInt::from(1);
+
+        let params = ElGamalParameters {
+            // 2048-bit size modulus
+            p: BigInt::from_str_radix("F52E0A34AA46657BE51CE1BFEA30D0BE7FD65D879AB9B2CAD7CDFECE734F074065869ABFD3B9FF77C77ACCE7824F75BB51D8BC0A2D83974D3CFE14100375C9DE52C4C038FDD03B4BC30616EE1997E7D5AB108DA95BEC7B7D5394781B2CE85000D8A7A02306ED48F7242D0277A8EE0DF0ABAC3725A9349FA4F1883D89FD5A027D97670368369B266F4BCDD1D4F266303580003FC02B82B97B86674D7387083143583ACA5C5AA63A86D6C88CF95F203203DCFE726C0098790B2B64AE3DD58ACDFDB912A75688B593F9D1342D49408ACAE04B184DA61976FCBF87F0A608CBC7F7B152D57C0F2F1E090A55EFA74E49BDCABEEF9A59EC9BD3D89FC8BBD920D5CA1CED", 16).unwrap(),
+            g: BigInt::from(1035),
+        };
+
+        let private_key = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let public_key = private_key.extract_public_key();
+
+        let zeta = BigInt::from(13);
+
+        let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
+        let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
+        let cipher_plus_zero = ElGamal::add(cipher.clone(), zero_encryption.clone(), &params);
+
+        let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
+        let e_minus = ElGamal::sub(cipher_plus_zero.clone(), cipher.clone(), &params);
+        assert_ne!(cipher, cipher_plus_zero);
+        assert_eq!(recovered_message, message);
+        assert_eq!(ElGamal::decrypt(e_minus.clone(), &private_key), BigInt::from(0));
+
+        // e' = E(0, alpha); alpha random
+        let alpha = BigInt::from(3);
+        let c2 = BigInt::from(23);
+        let s2 = BigInt::from(57);
+        let e_prime = ElGamal::encrypt(BigInt::from(0), alpha.clone(), &public_key);
+
+        let zv_to_c2 = public_key.h.clone().modpow(&c2, &params.p);
+        let t2 = mod_div(&(params.g.clone().modpow(&s2, &params.p)), &zv_to_c2, &params.p).unwrap();
+
+        // Challenge c random
+        let c = BigInt::from(137);
+
+        // c1 = c − c2 (mod u)
+        let c1 = (c.clone() - c2.clone()) % params.p.clone();
+        // beta = c1 * zeta + alpha
+        //let zeta = BigInt::from(347);
+        let beta = (&c1 * zeta + &alpha) % &params.p;
+
+        // Verification
+
+        // c = c1 + c2 (mod u)
+        let c_ = (c1.clone() + c2.clone()) % params.p.clone();
+        assert_eq!(c, c_);
+
+        // g^s2 =? Z^c2*t2
+        let g_s2 = params.g.clone().modpow(&s2, &params.p);
+        let rhs = public_key.h.clone().modpow(&c2, &params.p) * t2.clone() % params.p.clone();
+        assert_eq!(g_s2, rhs);
+
+        // E(0,β)= c1 * e_minus + e_prime
+        let beta_enc = ElGamal::encrypt(BigInt::from(0), beta.clone(), &public_key);
+
+        let c1_e_minus = (e_minus.0.modpow(&c1.clone(), &params.p), e_minus.1.modpow(&c1.clone(), &params.p));
+        let beta_question_mark = ElGamal::add(c1_e_minus, e_prime.clone(), &params);
+
+        println!("{:?}\n{:?}", beta_enc.0.to_str_radix(16), beta_question_mark.0.to_str_radix(16));
+        println!("-----\n{:?}\n{:?}", beta_enc.1.to_str_radix(16), beta_question_mark.1.to_str_radix(16));
+        assert_eq!(beta_enc, beta_question_mark);
+    }
+
+    #[test]
+    fn test_bn() {
+        let g = BigInt::from(2);
+        let zeta = BigInt::from(3);
+        let alpha = BigInt::from(5);
+        let c1 = BigInt::from(2);
+
+        let beta = &c1 * &zeta + &alpha;
+
+        println!("{}", beta.to_str_radix(10));
+
+        let modulus = BigInt::from(1024);
+        let lhs = g.modpow(&beta, &modulus);
+
+        println!("{}", lhs.to_str_radix(10));
+
+        let rhs = g.modpow(&zeta, &modulus).modpow(&c1, &modulus) * g.modpow(&alpha, &modulus) % &modulus;
+        println!("{}", rhs.to_str_radix(10));
+
+        let rhs = g.modpow(&c1, &modulus).modpow(&zeta, &modulus) * g.modpow(&alpha, &modulus) % &modulus;
+        println!("{}", rhs.to_str_radix(10));
+
+        assert_eq!(lhs, rhs);
     }
 }
