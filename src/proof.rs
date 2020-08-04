@@ -89,11 +89,7 @@ impl ReEncryptionProof {
     ) -> Self {
         let params = &public_key.params;
 
-        let e_prime = ElGamal::encrypt(
-            BigInt::from(0),
-            randomized_params.alpha.clone(),
-            &public_key,
-        );
+        let e_prime = ElGamal::encrypt(&BigInt::from(0), &randomized_params.alpha, &public_key);
 
         // Compute t2 = g^s2
         let zv_to_c2 = voter_public_key
@@ -131,11 +127,7 @@ impl ReEncryptionProof {
     ) -> Self {
         let params = &public_key.params;
 
-        let e_prime = ElGamal::encrypt(
-            BigInt::from(0),
-            randomized_params.alpha.clone(),
-            &public_key,
-        );
+        let e_prime = ElGamal::encrypt(&BigInt::from(0), &randomized_params.alpha, &public_key);
 
         // Compute t2 = g^s2
         let zv_to_c2 = voter_public_key
@@ -194,7 +186,7 @@ impl ReEncryptionProof {
 
         // E(0, beta) = c1 * e_minus + e_prime
         // lhs
-        let beta_cipher = ElGamal::encrypt(BigInt::from(0), self.beta.clone(), &public_key);
+        let beta_cipher = ElGamal::encrypt(&BigInt::from(0), &self.beta, &public_key);
 
         // rhs
         let c1_e_minus = (
@@ -228,7 +220,7 @@ impl ReEncryptionProof {
 
         // E(0, beta) = c1 * e_minus + e_prime
         // lhs
-        let beta_cipher = ElGamal::encrypt(BigInt::from(0), self.beta.clone(), &public_key);
+        let beta_cipher = ElGamal::encrypt(&BigInt::from(0), &self.beta, &public_key);
 
         // rhs
         let c1_e_minus = (
@@ -276,8 +268,8 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let x = sk.unwrap_or(BigInt::from(174));
-        let private_key = ElGamalPrivateKey::new(x, params.clone());
+        let x = sk.unwrap_or_else(|| BigInt::from(174));
+        let private_key = ElGamalPrivateKey::new(&x, params.clone());
         let public_key = private_key.extract_public_key();
 
         (private_key, public_key, params)
@@ -288,15 +280,14 @@ mod tests {
         assert_eq!(BigInt::from(4) % BigInt::from(3), BigInt::from(1));
 
         let (private_key, public_key, params) = create_crypto_material(None);
-        let public_key2 =
-            ElGamalPrivateKey::new(BigInt::from(173), params.clone()).extract_public_key();
+        let public_key2 = ElGamalPrivateKey::new(&BigInt::from(173), params).extract_public_key();
 
         let unique_id = BigInt::from(123456);
 
         let proof = SchnorrProof::new(private_key, BigInt::from(17), &unique_id);
         assert!(proof.verify(&public_key, &unique_id));
         assert!(!proof.verify(&public_key2, &unique_id));
-        assert!(!proof.verify(&public_key, &(unique_id.clone() + BigInt::from(1))));
+        assert!(!proof.verify(&public_key, &(unique_id + BigInt::from(1))));
     }
 
     #[test]
@@ -313,8 +304,8 @@ mod tests {
         let zeta = BigInt::from(13);
 
         // Encrypt the voter's choice, create a random encryption of zero using the witness, and add it to the cipher
-        let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
-        let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
+        let cipher = ElGamal::encrypt(&message, &BigInt::from(3), &public_key);
+        let zero_encryption = ElGamal::encrypt(&BigInt::from(0), &zeta, &public_key);
         let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         // Create the random parameters used for the proof
@@ -355,8 +346,8 @@ mod tests {
         let zeta = BigInt::from(13);
 
         // Encrypt the voter's choice, create a random encryption of zero using the witness, and add it to the cipher
-        let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
-        let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
+        let cipher = ElGamal::encrypt(&message, &BigInt::from(3), &public_key);
+        let zero_encryption = ElGamal::encrypt(&BigInt::from(0), &zeta, &public_key);
         let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         // Create the random parameters used for the proof

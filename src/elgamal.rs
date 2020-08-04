@@ -66,10 +66,13 @@ impl ElGamalPublicKey {
 }
 
 impl ElGamalPrivateKey {
-    pub fn new(x: BigInt, params: ElGamalParameters) -> Self {
-        assert!(params.belongs_to_group(&x));
+    pub fn new(x: &BigInt, params: ElGamalParameters) -> Self {
+        assert!(params.belongs_to_group(x));
 
-        ElGamalPrivateKey { params, x }
+        ElGamalPrivateKey {
+            params,
+            x: x.clone(),
+        }
     }
 
     pub fn extract_public_key(&self) -> ElGamalPublicKey {
@@ -83,18 +86,18 @@ pub struct ElGamal;
 impl ElGamal {
     /// To keep the function easily portable to the BC/no_std ecosystem, the nonce is injected into the algorithm.
     pub fn encrypt(
-        message: BigInt,
-        nonce: BigInt,
+        message: &BigInt,
+        nonce: &BigInt,
         public_key: &ElGamalPublicKey,
     ) -> (BigInt, BigInt) {
-        assert!(public_key.params.belongs_to_group(&nonce));
+        assert!(public_key.params.belongs_to_group(nonce));
 
-        let modulus = public_key.params.p.clone();
-        let generator = public_key.params.g.clone();
+        let modulus = &public_key.params.p;
+        let generator = &public_key.params.g;
 
         let c = generator.modpow(&nonce, &modulus);
-        let public_key_to_nonce = public_key.h.modpow(&nonce, &modulus);
-        let g_to_m = generator.modpow(&message, &modulus);
+        let public_key_to_nonce = public_key.h.modpow(nonce, modulus);
+        let g_to_m = generator.modpow(message, modulus);
         let d = g_to_m.mul(public_key_to_nonce) % modulus;
         (c, d)
     }
@@ -183,7 +186,7 @@ mod tests {
             g: BigInt::from(60),
         };
 
-        let private_key = ElGamalPrivateKey::new(BigInt::from(7), params.clone());
+        let private_key = ElGamalPrivateKey::new(&BigInt::from(7), params);
         let public_key = ElGamalPublicKey::new(&private_key);
 
         assert_eq!(public_key.h, BigInt::from(216));
@@ -203,9 +206,9 @@ mod tests {
             params: params.clone(),
         };
 
-        let nonce = BigInt::from(params.p + 1);
+        let nonce = params.p + 1;
         let message = BigInt::from(101);
-        ElGamal::encrypt(message, nonce, &public_key);
+        ElGamal::encrypt(&message, &nonce, &public_key);
     }
 
     #[test]
@@ -216,10 +219,10 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let private_key = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let private_key = ElGamalPrivateKey::new(&BigInt::from(174), params);
         let public_key = private_key.extract_public_key();
 
-        let c = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
+        let c = ElGamal::encrypt(&message, &BigInt::from(3), &public_key);
         let recovered_message = ElGamal::decrypt(c, &private_key);
         assert_eq!(recovered_message, message);
     }
@@ -236,11 +239,11 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let private_key = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let private_key = ElGamalPrivateKey::new(&BigInt::from(174), params.clone());
         let public_key = private_key.extract_public_key();
 
-        let cipher1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &public_key);
-        let cipher2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &public_key);
+        let cipher1 = ElGamal::encrypt(&m1, &BigInt::from(3), &public_key);
+        let cipher2 = ElGamal::encrypt(&m2, &BigInt::from(7), &public_key);
         let encrypted_sum = ElGamal::add(&cipher1, &cipher2, &params);
 
         let recovered_message = ElGamal::decrypt(encrypted_sum.clone(), &private_key);
@@ -248,7 +251,7 @@ mod tests {
 
         let sub = ElGamal::sub(&encrypted_sum, &cipher1, &params);
         let recovered_message = ElGamal::decrypt(sub, &private_key);
-        assert_eq!(recovered_message, m2.clone());
+        assert_eq!(recovered_message, m2);
     }
 
     #[test]
@@ -261,11 +264,11 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let private_key = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let private_key = ElGamalPrivateKey::new(&BigInt::from(174), params.clone());
         let public_key = private_key.extract_public_key();
 
-        let cipher = ElGamal::encrypt(m1.clone(), BigInt::from(3), &public_key);
-        let zero_encryption = ElGamal::encrypt(BigInt::from(0), BigInt::from(13), &public_key);
+        let cipher = ElGamal::encrypt(&m1, &BigInt::from(3), &public_key);
+        let zero_encryption = ElGamal::encrypt(&BigInt::from(0), &BigInt::from(13), &public_key);
         let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
@@ -334,18 +337,18 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let private_key1 = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let private_key1 = ElGamalPrivateKey::new(&BigInt::from(174), params.clone());
         let public_key1 = private_key1.extract_public_key();
 
-        let private_key2 = ElGamalPrivateKey::new(BigInt::from(45), params.clone());
+        let private_key2 = ElGamalPrivateKey::new(&BigInt::from(45), params.clone());
         let public_key2 = private_key2.extract_public_key();
 
         let pk = ElGamalPublicKey {
-            h: public_key1.h.clone() * public_key2.h.clone() % &params.p,
-            params: params.clone(),
+            h: public_key1.h * public_key2.h % &params.p,
+            params,
         };
 
-        let c = ElGamal::encrypt(message.clone(), BigInt::from(3), &pk);
+        let c = ElGamal::encrypt(&message, &BigInt::from(3), &pk);
 
         let share1 = ElGamal::decrypt_share(&c, &private_key1);
         let share2 = ElGamal::decrypt_share(&c, &private_key2);
@@ -366,19 +369,19 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let private_key1 = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let private_key1 = ElGamalPrivateKey::new(&BigInt::from(174), params.clone());
         let public_key1 = private_key1.extract_public_key();
 
-        let private_key2 = ElGamalPrivateKey::new(BigInt::from(45), params.clone());
+        let private_key2 = ElGamalPrivateKey::new(&BigInt::from(45), params.clone());
         let public_key2 = private_key2.extract_public_key();
 
         let pk = ElGamalPublicKey {
-            h: public_key1.h.clone() * public_key2.h.clone() % &params.p,
+            h: public_key1.h * public_key2.h % &params.p,
             params: params.clone(),
         };
 
-        let c1 = ElGamal::encrypt(m1.clone(), BigInt::from(3), &pk);
-        let c2 = ElGamal::encrypt(m2.clone(), BigInt::from(7), &pk);
+        let c1 = ElGamal::encrypt(&m1, &BigInt::from(3), &pk);
+        let c2 = ElGamal::encrypt(&m2, &BigInt::from(7), &pk);
         let c = ElGamal::add(&c1, &c2, &params);
 
         let share1 = ElGamal::decrypt_share(&c, &private_key1);
@@ -403,13 +406,13 @@ mod tests {
             g: BigInt::from(1035),
         };
 
-        let private_key = ElGamalPrivateKey::new(BigInt::from(174), params.clone());
+        let private_key = ElGamalPrivateKey::new(&BigInt::from(174), params.clone());
         let public_key = private_key.extract_public_key();
 
         let zeta = BigInt::from(13);
 
-        let cipher = ElGamal::encrypt(message.clone(), BigInt::from(3), &public_key);
-        let zero_encryption = ElGamal::encrypt(BigInt::from(0), zeta.clone(), &public_key);
+        let cipher = ElGamal::encrypt(&message, &BigInt::from(3), &public_key);
+        let zero_encryption = ElGamal::encrypt(&BigInt::from(0), &zeta, &public_key);
         let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
         let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
@@ -425,15 +428,10 @@ mod tests {
         let alpha = BigInt::from(3);
         let c2 = BigInt::from(23);
         let s2 = BigInt::from(57);
-        let e_prime = ElGamal::encrypt(BigInt::from(0), alpha.clone(), &public_key);
+        let e_prime = ElGamal::encrypt(&BigInt::from(0), &alpha, &public_key);
 
-        let zv_to_c2 = public_key.h.clone().modpow(&c2, &params.p);
-        let t2 = mod_div(
-            &(params.g.clone().modpow(&s2, &params.p)),
-            &zv_to_c2,
-            &params.p,
-        )
-        .unwrap();
+        let zv_to_c2 = public_key.h.modpow(&c2, &params.p);
+        let t2 = mod_div(&(params.g.modpow(&s2, &params.p)), &zv_to_c2, &params.p).unwrap();
 
         // Challenge c random
         let c = BigInt::from(137);
@@ -451,16 +449,16 @@ mod tests {
         assert_eq!(c, c_);
 
         // g^s2 =? Z^c2*t2
-        let g_s2 = params.g.clone().modpow(&s2, &params.p);
-        let rhs = public_key.h.clone().modpow(&c2, &params.p) * t2.clone() % params.p.clone();
+        let g_s2 = params.g.modpow(&s2, &params.p);
+        let rhs = public_key.h.modpow(&c2, &params.p) * t2 % params.p.clone();
         assert_eq!(g_s2, rhs);
 
         // E(0,β)= c1 * e_minus + e_prime
-        let beta_enc = ElGamal::encrypt(BigInt::from(0), beta.clone(), &public_key);
+        let beta_enc = ElGamal::encrypt(&BigInt::from(0), &beta, &public_key);
 
         let c1_e_minus = (
-            e_minus.0.modpow(&c1.clone(), &params.p),
-            e_minus.1.modpow(&c1.clone(), &params.p),
+            e_minus.0.modpow(&c1, &params.p),
+            e_minus.1.modpow(&c1, &params.p),
         );
         let beta_question_mark = ElGamal::add(&c1_e_minus, &e_prime, &params);
 
