@@ -102,7 +102,7 @@ impl ElGamal {
         (c, d)
     }
 
-    pub fn decrypt(cipher: (BigInt, BigInt), private_key: &ElGamalPrivateKey) -> BigInt {
+    pub fn decrypt(cipher: &(BigInt, BigInt), private_key: &ElGamalPrivateKey) -> BigInt {
         let (c, d) = cipher;
 
         let modulus = private_key.params.p.clone();
@@ -156,7 +156,7 @@ impl ElGamal {
     }
 
     pub fn decrypt_shares(
-        cipher: (BigInt, BigInt),
+        cipher: &(BigInt, BigInt),
         decrypted_shares: &[&BigInt],
         params: &ElGamalParameters,
     ) -> BigInt {
@@ -223,7 +223,7 @@ mod tests {
         let public_key = private_key.extract_public_key();
 
         let c = ElGamal::encrypt(&message, &BigInt::from(3), &public_key);
-        let recovered_message = ElGamal::decrypt(c, &private_key);
+        let recovered_message = ElGamal::decrypt(&c, &private_key);
         assert_eq!(recovered_message, message);
     }
 
@@ -246,11 +246,11 @@ mod tests {
         let cipher2 = ElGamal::encrypt(&m2, &BigInt::from(7), &public_key);
         let encrypted_sum = ElGamal::add(&cipher1, &cipher2, &params);
 
-        let recovered_message = ElGamal::decrypt(encrypted_sum.clone(), &private_key);
+        let recovered_message = ElGamal::decrypt(&encrypted_sum, &private_key);
         assert_eq!(recovered_message, sum);
 
         let sub = ElGamal::sub(&encrypted_sum, &cipher1, &params);
-        let recovered_message = ElGamal::decrypt(sub, &private_key);
+        let recovered_message = ElGamal::decrypt(&sub, &private_key);
         assert_eq!(recovered_message, m2);
     }
 
@@ -271,7 +271,7 @@ mod tests {
         let zero_encryption = ElGamal::encrypt(&BigInt::from(0), &BigInt::from(13), &public_key);
         let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
-        let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
+        let recovered_message = ElGamal::decrypt(&cipher_plus_zero, &private_key);
         assert_ne!(cipher, cipher_plus_zero);
         assert_eq!(recovered_message, m1);
     }
@@ -356,7 +356,7 @@ mod tests {
         assert_ne!(share1, message);
         assert_ne!(share2, message);
 
-        let recovered_message = ElGamal::decrypt_shares(c, &[&share1, &share2], &pk.params);
+        let recovered_message = ElGamal::decrypt_shares(&c, &[&share1, &share2], &pk.params);
         assert_eq!(message, recovered_message)
     }
 
@@ -392,7 +392,7 @@ mod tests {
         assert_ne!(share1, m2);
         assert_ne!(share2, m2);
 
-        let recovered_message = ElGamal::decrypt_shares(c, &[&share1, &share2], &pk.params);
+        let recovered_message = ElGamal::decrypt_shares(&c, &[&share1, &share2], &pk.params);
         assert_eq!(m1 + m2, recovered_message)
     }
 
@@ -415,14 +415,11 @@ mod tests {
         let zero_encryption = ElGamal::encrypt(&BigInt::from(0), &zeta, &public_key);
         let cipher_plus_zero = ElGamal::add(&cipher, &zero_encryption, &params);
 
-        let recovered_message = ElGamal::decrypt(cipher_plus_zero.clone(), &private_key);
+        let recovered_message = ElGamal::decrypt(&cipher_plus_zero, &private_key);
         let e_minus = ElGamal::sub(&cipher_plus_zero, &cipher, &params);
         assert_ne!(cipher, cipher_plus_zero);
         assert_eq!(recovered_message, message);
-        assert_eq!(
-            ElGamal::decrypt(e_minus.clone(), &private_key),
-            BigInt::from(0)
-        );
+        assert_eq!(ElGamal::decrypt(&e_minus, &private_key), BigInt::from(0));
 
         // e' = E(0, alpha); alpha random
         let alpha = BigInt::from(3);
