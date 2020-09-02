@@ -6,6 +6,29 @@ commands:
     description: "Prints out cargo --version"
     steps:
       - run: cargo --version
+      - run: |
+          rustup update nightly
+          rustup target add wasm32-unknown-unknown --toolchain nightly
+          cargo +nightly build --verbose --release --target wasm32-unknown-unknown
+
+  rustfmt:
+    description: "Check formatting"
+    steps:
+      - run: rustup component add rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    description: "Lint"
+    steps:
+      - run: rustup component add clippy
+      - run: cargo clippy -- -D warnings
+
+  build:
+    description: "Build"
+    steps:
+      - run: rustup update nightly
+      - run: rustup target add wasm32-unknown-unknown --toolchain nightly
+      - run: cargo +nightly build --verbose --release --target wasm32-unknown-unknown
 
 jobs:
   build:
@@ -13,13 +36,20 @@ jobs:
       - image: cimg/rust:1.46.0
     steps:
       - checkout
-      - run: cargo --version
+      - cargo-version
   test:
     docker:
       - image: cimg/rust:1.46.0
     steps:
       - checkout
       - run: cargo test --verbose --all-features
+
+  format-and-lint:
+    docker:
+      - image: cimg/rust:1.46.0
+      steps:
+        - rustfmt
+        - clippy
 
 
 # Orchestrate or schedule a set of jobs
@@ -29,4 +59,5 @@ workflows:
     jobs:
       - build
       - test
+      - format-and-lint
       
