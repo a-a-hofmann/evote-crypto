@@ -30,26 +30,35 @@ commands:
       - run: rustup target add wasm32-unknown-unknown --toolchain nightly
       - run: cargo +nightly build --verbose --release --target wasm32-unknown-unknown
 
-  cache:
+  restore_cache:
+    description: "Restore cache"
+    steps:
+      - restore_cache:
+          key: cargo-{{checksum "Cargo.lock"}}
+
+  store_cache:
     description: "Save cache"
     steps:
       - save_cache:
-          key: project-cache
+          key: cargo-{{checksum "Cargo.lock"}}
           paths:
             - "~/.cargo"
-            - "./target"
 
 jobs:
   build:
     docker:
       - image: cimg/rust:1.46.0
+        environment:
+          - CARGO_TERM_COLOR: always
     steps:
       - checkout
       - cargo-version
-      - cache
+      - store_cache
   test:
     docker:
       - image: cimg/rust:1.46.0
+        environment:
+          - CARGO_TERM_COLOR: always
     steps:
       - checkout
       - run: cargo test --verbose --all-features
@@ -57,6 +66,8 @@ jobs:
   format-and-lint:
     docker:
       - image: cimg/rust:1.46.0
+        environment:
+          - CARGO_TERM_COLOR: always
     steps:
       - checkout
       - rustfmt
