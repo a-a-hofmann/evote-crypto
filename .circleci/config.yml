@@ -30,6 +30,15 @@ commands:
       - run: rustup target add wasm32-unknown-unknown --toolchain nightly
       - run: cargo +nightly build --verbose --release --target wasm32-unknown-unknown
 
+  cache:
+    description: "Save cache"
+    steps:
+      - save_cache:
+          key: project-cache
+          paths:
+            - "~/.cargo"
+            - "./target"
+
 jobs:
   build:
     docker:
@@ -37,6 +46,7 @@ jobs:
     steps:
       - checkout
       - cargo-version
+      - cache
   test:
     docker:
       - image: cimg/rust:1.46.0
@@ -48,6 +58,7 @@ jobs:
     docker:
       - image: cimg/rust:1.46.0
     steps:
+      - checkout
       - rustfmt
       - clippy
 
