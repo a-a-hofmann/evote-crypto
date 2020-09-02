@@ -29,7 +29,6 @@ commands:
       - run: rustup update nightly
       - run: rustup target add wasm32-unknown-unknown --toolchain nightly
       - run: cargo +nightly build --verbose --release --target wasm32-unknown-unknown
-      - run: cargo install cargo2junit
 
   store_cache:
     description: "Save cache"
@@ -60,9 +59,7 @@ jobs:
           - CARGO_TERM_COLOR: always
     steps:
       - checkout
-      - restore_cache:
-          keys:
-            - cargo-{{checksum "Cargo.lock"}}
+      - run: cargo install cargo2junit
       - run: |
           mkdir -p ~/test-results/
           cargo test --verbose --all-features -- -Z unstable-options --format json | tee ~/test-results/results.json
