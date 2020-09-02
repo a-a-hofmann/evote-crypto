@@ -34,7 +34,7 @@ commands:
     description: "Restore cache"
     steps:
       - restore_cache:
-          key: cargo-{{checksum "Cargo.lock"}}
+          keys: cargo-{{checksum "Cargo.lock"}}
 
   store_cache:
     description: "Save cache"
