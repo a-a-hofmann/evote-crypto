@@ -62,7 +62,11 @@ jobs:
       - run: cargo install cargo2junit
       - run: |
           mkdir -p ~/test-results/
-          (cargo test --verbose --all-features -- -Z unstable-options --format json | tee ~/test-results/results.json) || cat ~/test-results/results.json | cargo2junit > ~/test-results/results.xml
+          cargo test --verbose --all-features -- -Z unstable-options --format json | tee ~/test-results/results.json
+      - run:
+          name: Save test results
+          command: cat ~/test-results/results.json | cargo2junit > ~/test-results/results.xml
+          when: always
       - store_test_results:
           path: ~/test-results
 
