@@ -53,6 +53,8 @@ jobs:
     steps:
       - checkout
       - cargo-version
+      - restore_cache
+      - build
       - store_cache
   test:
     docker:
@@ -61,6 +63,7 @@ jobs:
           - CARGO_TERM_COLOR: always
     steps:
       - checkout
+      - restore_cache
       - run: cargo install cargo2junit
       - run: |
           mkdir -p ~/test-results/
