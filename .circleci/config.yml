@@ -1,16 +1,32 @@
 # Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
 
+commands:
+  cargo-version:
+    description: "Prints out cargo --version"
+    steps:
+      - run: cargo --version
+
+jobs:
+  build:
+    docker:
+      - image: cimg/rust:1.46.0
+    steps:
+      - checkout
+      - run: cargo --version
+  test:
+    docker:
+      - image: cimg/rust:1.46.0
+    steps:
+      - checkout
+      - run: cargo test --verbose --all-features
+
+
 # Orchestrate or schedule a set of jobs
 workflows:
-  # Name the workflow "welcome"
+  version: 2.1
   build:
-    # Run the welcome/run job in its own container
     jobs:
-      build:
-        docker:
-          - image: cimg/rust:1.46.0
-        steps:
-          - checkout
-          - run: cargo --version
+      - build
+      - test
       
