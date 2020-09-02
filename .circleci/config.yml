@@ -69,6 +69,10 @@ workflows:
   build:
     jobs:
       - build
-      - test
-      - format-and-lint
+      - test:
+          requires:
+            - build
+      - format-and-lint:
+          requires:
+            - build
       
