@@ -49,17 +49,23 @@ impl SchnorrProof {
         let lhs = generator.clone().modpow(&self.response, &modulus);
         let rhs = commitment * &public_key.h.modpow(&self.challenge, &modulus) % modulus;
 
-        challenge == self.challenge && lhs == rhs
+        let first = challenge == self.challenge;
+        let second = lhs == rhs;
+        first && second
     }
 
     fn hash(unique_id: &BigInt, h: &BigInt, commitment: &BigInt) -> BigInt {
         let mut hasher = Blake2b::new();
-        hasher.update(unique_id.to_signed_bytes_be());
-        hasher.update(h.to_signed_bytes_be());
-        hasher.update(commitment.to_signed_bytes_be());
 
-        let hash = hasher.finalize();
-        BigInt::from_signed_bytes_be(&*hash)
+        let arg1 = unique_id.to_bytes_be().1;
+        let arg2 = h.to_bytes_be().1;
+        let arg3 = commitment.to_bytes_be().1;
+
+        let concatenated = [&arg1[..], &arg2[..], &arg3[..]].concat();
+        hasher.update(concatenated);
+
+        let hash = &*hasher.finalize();
+        BigInt::from_bytes_be(Sign::Plus, hash)
     }
 }
 
@@ -101,7 +107,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-        .unwrap();
+            .unwrap();
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -139,7 +145,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-        .unwrap();
+            .unwrap();
 
         let challenge = Self::hash(&e_prime, &t2);
 
@@ -370,5 +376,26 @@ mod tests {
         let verification = proof.verify_non_interactive(&e_minus, &public_key, &voter_public_key);
         assert!(verification);
         assert_eq!(e_minus, zero_encryption);
+    }
+
+    #[test]
+    fn test_proof_generated_in_js_lib() {
+        let params = ElGamalParameters {
+            p: BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a63a3620ffffffffffffffff", 16).unwrap(),
+            g: BigInt::from_str_radix("2", 10).unwrap(),
+        };
+        let public_key = ElGamalPublicKey {
+            h: BigInt::from_str_radix("761ac9c62d5bfcee1ce46cb95c318c439b4916b48627d6771c033eb000fa055c2df846f380ed7d782d8cff2e81d1c103fac759697ab5f329a474067e979cc1a1990890d0a567be2656aed51371b3c59787ac31808afa79327e01a068c0e5c7d6", 16).unwrap(),
+            params: params.clone(),
+        };
+        let proof = SchnorrProof {
+            challenge: BigInt::from_str_radix("93259cedf8d5dd6eff73b9fce9d4882255d010765ceae65446fad3e8d39976f472a048f779e92967cfc0d48d28aca6a52aeb23a51af2dec93773e6b01551c2df", 16).unwrap(),
+            response: BigInt::from_str_radix("66e36e2e39d8041da87d304ad3da004b8225f974d540593444339693d83a039ec5d08bff9cc2e22fe9169af6b2a055927c097a89b0137301557565b5fb76313c0d48af6eefd6b3005b3a18b1520e78a898ab79acf35f6424b2f05947d16d8c07", 16).unwrap(),
+        };
+
+        let unique_id = BigInt::from_str_radix("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48", 16).unwrap();
+
+        let verifies = proof.verify(&public_key, &unique_id);
+        assert!(verifies);
     }
 }
