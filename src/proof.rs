@@ -7,8 +7,8 @@ use crate::math::mod_div;
 /// Schnorr Proof - Key Generation
 /// Proves knowledge of an ElGamal private key `x` that belongs to a public key `h`
 pub struct SchnorrProof {
-    challenge: BigInt,
-    response: BigInt,
+    pub challenge: BigInt,
+    pub response: BigInt,
 }
 
 impl SchnorrProof {
@@ -101,7 +101,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-        .unwrap();
+            .unwrap();
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -139,7 +139,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-        .unwrap();
+            .unwrap();
 
         let challenge = Self::hash(&e_prime, &t2);
 
