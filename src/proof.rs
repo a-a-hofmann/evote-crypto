@@ -107,7 +107,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-            .unwrap();
+        .unwrap();
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -145,7 +145,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-            .unwrap();
+        .unwrap();
 
         let challenge = Self::hash(&e_prime, &t2);
 
@@ -393,7 +393,11 @@ mod tests {
             response: BigInt::from_str_radix("66e36e2e39d8041da87d304ad3da004b8225f974d540593444339693d83a039ec5d08bff9cc2e22fe9169af6b2a055927c097a89b0137301557565b5fb76313c0d48af6eefd6b3005b3a18b1520e78a898ab79acf35f6424b2f05947d16d8c07", 16).unwrap(),
         };
 
-        let unique_id = BigInt::from_str_radix("8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48", 16).unwrap();
+        let unique_id = BigInt::from_str_radix(
+            "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
+            16,
+        )
+        .unwrap();
 
         let verifies = proof.verify(&public_key, &unique_id);
         assert!(verifies);
