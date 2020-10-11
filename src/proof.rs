@@ -1,7 +1,7 @@
-use blake2::{Blake2b, Digest};
-use num_bigint::{BigInt, Sign};
+use num_bigint::BigInt;
 
 use crate::elgamal::{ElGamal, ElGamalPrivateKey, ElGamalPublicKey};
+use crate::hash::hash_args;
 use crate::math::mod_div;
 
 /// Schnorr Proof - Key Generation
@@ -24,7 +24,7 @@ impl SchnorrProof {
         assert!(nonce < q);
         let commitment: BigInt = generator.modpow(&nonce, &modulus);
 
-        let challenge = Self::hash(&unique_id, &public_key.h, &commitment) % &q;
+        let challenge = hash_args(vec![&unique_id, &public_key.h, &commitment]) % &q;
 
         let response = (nonce + (challenge.clone() * sk) % &q) % &q;
 
@@ -44,7 +44,7 @@ impl SchnorrProof {
         let h_to_c = public_key.h.clone().modpow(&self.challenge, &modulus);
         let commitment = mod_div(&g_to_d, &h_to_c, &modulus).expect("Cannot compute mod_inverse");
 
-        let challenge = Self::hash(&unique_id, &public_key.h, &commitment) % &q;
+        let challenge = hash_args(vec![&unique_id, &public_key.h, &commitment]) % &q;
 
         let lhs = generator.clone().modpow(&self.response, &modulus);
         let rhs = commitment * &public_key.h.modpow(&self.challenge, &modulus) % modulus;
@@ -52,20 +52,6 @@ impl SchnorrProof {
         let first = challenge == self.challenge;
         let second = lhs == rhs;
         first && second
-    }
-
-    fn hash(unique_id: &BigInt, h: &BigInt, commitment: &BigInt) -> BigInt {
-        let mut hasher = Blake2b::new();
-
-        let arg1 = unique_id.to_bytes_be().1;
-        let arg2 = h.to_bytes_be().1;
-        let arg3 = commitment.to_bytes_be().1;
-
-        let concatenated = [&arg1[..], &arg2[..], &arg3[..]].concat();
-        hasher.update(concatenated);
-
-        let hash = &*hasher.finalize();
-        BigInt::from_bytes_be(Sign::Plus, hash)
     }
 }
 
@@ -147,7 +133,7 @@ impl ReEncryptionProof {
         )
         .unwrap();
 
-        let challenge = Self::hash(&e_prime, &t2);
+        let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &t2]);
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -163,16 +149,6 @@ impl ReEncryptionProof {
             beta,
             s2: randomized_params.s2.clone(),
         }
-    }
-
-    fn hash(e_prime: &(BigInt, BigInt), t2: &BigInt) -> BigInt {
-        let mut hasher = Blake2b::new();
-        hasher.update(e_prime.0.to_signed_bytes_be());
-        hasher.update(e_prime.1.to_signed_bytes_be());
-        hasher.update(t2.to_signed_bytes_be());
-
-        let hash = hasher.finalize();
-        BigInt::from_bytes_be(Sign::Plus, &*hash)
     }
 
     pub fn verify(
@@ -249,7 +225,7 @@ impl ReEncryptionProof {
         // c = c1 + c2 % mod p
         let c1_plus_c2 = (&self.c1 + &self.c2) % modulus;
         let e_prime = ElGamal::sub(&beta_cipher, &c1_e_minus, &public_key.params);
-        let challenge = Self::hash(&e_prime, &self.t2);
+        let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &self.t2]);
         assert_eq!(challenge, c1_plus_c2);
         let first_condition = challenge == c1_plus_c2;
 
