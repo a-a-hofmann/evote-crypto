@@ -330,6 +330,21 @@ mod tests {
     }
 
     #[test]
+    fn combine_shares_real_keys() {
+        let share1 = BigInt::from_str_radix("44ee6e68d64cca6b341221450296c9872ae734da140f9b46800c46c1aa4a841b6c0d9f54521944a21f5307c46b0e614f32a2e013c958b5fdcb530ba577da8d238b9d353ce74544ad84a87d041efa24a43264d2e27d521038b9376f0df1dea892", 16).unwrap();
+        let share2 = BigInt::from_str_radix("e5e24ba8aa2adb0c2959c3481e0cc668cd9bb612232cf0029f25ef6bdc4b3ea092a2443d552df1abfc04342681c47c6689346b9417626ab1bdcb8872efc1739b5fbbe5dab77a47b27f854577160a9ba82885c67ff911b20265ba42d8e086bf2a", 16).unwrap();
+        let product = ElGamal::combine_shares(
+            &[&share1, &share2],
+            &ElGamalParameters {
+                p: BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a63a3620ffffffffffffffff", 16).unwrap(),
+                g: BigInt::from(2),
+            },
+        );
+
+        assert_eq!(product, BigInt::from_str_radix("623252d8e2ef242720c4e3455140b94cbc68ae44e1e1e1440d5d25fb30a1ae11edb251f25a18665b05853bc31a8b44699887355f3ac95d38697375237e9066fe0f7141246674116679866dbd0f407b107c16aacea29f267d203c0c5d30e97417", 16).unwrap());
+    }
+
+    #[test]
     fn encrypt_decrypt_distributed() {
         let message = BigInt::from(88);
         let params = ElGamalParameters {
