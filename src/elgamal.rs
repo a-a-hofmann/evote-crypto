@@ -92,11 +92,7 @@ pub struct ElGamal;
 /// Exponential ElGamal encryption scheme
 impl ElGamal {
     /// To keep the function easily portable to the BC/no_std ecosystem, the nonce is injected into the algorithm.
-    pub fn encrypt(
-        message: &BigInt,
-        nonce: &BigInt,
-        public_key: &ElGamalPublicKey,
-    ) -> Cipher {
+    pub fn encrypt(message: &BigInt, nonce: &BigInt, public_key: &ElGamalPublicKey) -> Cipher {
         assert!(public_key.params.belongs_to_group(nonce));
 
         let modulus = &public_key.params.p;
@@ -122,21 +118,13 @@ impl ElGamal {
         math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 
-    pub fn add(
-        cipher1: &Cipher,
-        cipher2: &Cipher,
-        params: &ElGamalParameters,
-    ) -> Cipher {
+    pub fn add(cipher1: &Cipher, cipher2: &Cipher, params: &ElGamalParameters) -> Cipher {
         let Cipher(c1, d1) = cipher1;
         let Cipher(c2, d2) = cipher2;
         Cipher(c1 * c2 % &params.p, d1 * d2 % &params.p)
     }
 
-    pub fn sub(
-        cipher1: &Cipher,
-        cipher2: &Cipher,
-        params: &ElGamalParameters,
-    ) -> Cipher {
+    pub fn sub(cipher1: &Cipher, cipher2: &Cipher, params: &ElGamalParameters) -> Cipher {
         let Cipher(c1, d1) = cipher1;
         let Cipher(c2, d2) = cipher2;
         let modulus = &params.p;

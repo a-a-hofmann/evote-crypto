@@ -93,7 +93,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-            .unwrap();
+        .unwrap();
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -131,7 +131,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-            .unwrap();
+        .unwrap();
 
         let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &t2]);
 
@@ -246,7 +246,12 @@ pub struct BallotProof {
 }
 
 impl BallotProof {
-    pub fn verify(&self, cipher: &Cipher, public_key: &ElGamalPublicKey, unique_id: &BigInt) -> bool {
+    pub fn verify(
+        &self,
+        cipher: &Cipher,
+        public_key: &ElGamalPublicKey,
+        unique_id: &BigInt,
+    ) -> bool {
         let params = &public_key.params;
         let ElGamalParameters { p, g } = params;
 
@@ -271,12 +276,25 @@ impl BallotProof {
         let fourth_condition = lhs == rhs;
         assert!(fourth_condition, "4th condition failed");
 
-        let rhs = hash_args(vec![&public_key.h, unique_id, &cipher.0, &cipher.1, &self.a0, &self.b0, &self.a1, &self.b1]) % params.q();
+        let rhs = hash_args(vec![
+            &public_key.h,
+            unique_id,
+            &cipher.0,
+            &cipher.1,
+            &self.a0,
+            &self.b0,
+            &self.a1,
+            &self.b1,
+        ]) % params.q();
         let lhs = (&self.c0 + &self.c1) % params.q();
         let fifth_condition = lhs == rhs;
         assert!(fifth_condition, "5th condition failed");
 
-        first_condition && second_condition && third_condition && fourth_condition && fifth_condition
+        first_condition
+            && second_condition
+            && third_condition
+            && fourth_condition
+            && fifth_condition
     }
 }
 
@@ -420,7 +438,7 @@ mod tests {
             "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
             16,
         )
-            .unwrap();
+        .unwrap();
 
         let verifies = proof.verify(&public_key, &unique_id);
         assert!(verifies);
@@ -437,14 +455,8 @@ mod tests {
         let h = BigInt::from_str_radix("e450fde21b1a160dee9f1576f0771785182579b7f49777bcd6950acc3e06fe10330a5eb4f18f29c95076d81d83748ec19b4e7391f240765d268d601abb89ba7a69a5341a2a77bb356fbdfefb495f2820b5d213217e8db987f7ebc212b8c057702dac3cd293354ec238c5e3f55bced02bfd700efd78ca3ab128c863ae76c8e9a646ce844b0502994d3c2dd2d251c839a7570b7f36daab13fcad4ddc09d95cda51381b4f84248d7e24b6caec06664afa82b682fe1295a67ebac76dc8ea25f33836b64e9a09359f456da262bdafef43fb439224888710952bb312c1dbd3b2ff9a9b5ba8765a2a761171025f004c1a0b50dbbf7d6aab001632e4f526d1a1488964c6", 16).unwrap();
         let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
         let g = BigInt::from(2);
-        let params = ElGamalParameters {
-            p,
-            g,
-        };
-        let public_key = ElGamalPublicKey {
-            h,
-            params,
-        };
+        let params = ElGamalParameters { p, g };
+        let public_key = ElGamalPublicKey { h, params };
 
         // Proof of 0
         let a0: BigInt = BigInt::from_str_radix("cf71b904ba78e01c0b3ed890bb9345d3070977dcb02f9a2f3b962f2c8d4e3305b9120c555fd55628b4f752462d5ff085285acc2b939bf87e6cef55fb1b562b49ccca14c286557a8543843e1109e347697df79ec8fbec1aaeb7ab6fab5cb5b9fe8b3ac7ee077299002aea25b8a91a73d6e48157b0f23b61b736e8015c4fd1e2f8e57002c65c10514d7dab11fb11b1704c1576f0c24d67dc53f93376881a9094c956087f045fb3b1120077df8509391a1535f2e52224a484645419d97af0dbf8c9eea53f6398a97a5bc49a8483a0a91b398b82cbd0cfcb93bfaf32a153419a3173d80e01bbe74b64a05b366ce2597f34d206ebcbe45feb5cd5675410d26ac210ca", 16).unwrap();
@@ -478,14 +490,8 @@ mod tests {
         let h = BigInt::from_str_radix("2cb82edb0e47fa46162702ceccb235b2002e60a96e5f620f839fad10e0b372c8837a24f8bfc2deef1907822921a03755737d8b39591631eb061e4d7e57cce13ee7b03537caa5f879397317038e0daefbb1f4f9fbfe7b646743cb6d16209099e89b4b221c9e64b1d1d972de44de6a7d71b99c4d644842e143be6a93d22d07a59e339e3afd8500597889bbf82f8a11acb2b94f48e5060faaaf608cc3f890a4fad420807852156bd812f187912529c64c57aef97d16ad8e12ec575d15de7ea09e7e455bd342aa8b3fb310cff0740102742a46aa471f24b47c002abe77cb8e905f760db8cb4e8d4ea53124bef3ee62a6ddb962a48a5209d124412ba022ea4b6e82a2", 16).unwrap();
         let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
         let g = BigInt::from(2);
-        let params = ElGamalParameters {
-            p,
-            g,
-        };
-        let public_key = ElGamalPublicKey {
-            h,
-            params,
-        };
+        let params = ElGamalParameters { p, g };
+        let public_key = ElGamalPublicKey { h, params };
 
         let encrypted1 = Cipher(
             BigInt::from_str_radix("27e9caa99a8f2ebcf1ae3d6301ef9896559f22bcc55dd16a4f96a4879657ab297f4ece5667e4c605c1370f5f227196c22f94f3d1aa600c4f36bde57669b2cfcc3b28541bdba4b7becf46b89d26d1685b940d2ebb31c4dd144b94b3dede072613cf20a569adaa5c6a5c9e06a673a13b4d3fd081533f029453efd0fdc622b2a2128705c79ae90c81bd5cc53f50861b487bd14a85db7808b9dcbd1cac5d3c385a66a58044e821b70fd9e5cbf54689405ab71f667fc70a45d793e68e290717dff72ba67d03a1debee82e5b5828a56cea59db0eb2c6abaacadffb6573e106a5bdd429f23495ec8d9bf7a67b0f7dd93fa6a4ec749a6f9bbabe3235b5d4c5b423a8cc6a", 16).unwrap(),
