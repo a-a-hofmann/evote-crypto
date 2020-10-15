@@ -1,10 +1,13 @@
-use core::ops::Mul;
+use core::ops::{Div, Mul, Sub};
 
 use num_bigint::BigInt;
 use num_traits::Signed;
 
 use crate::math;
 use crate::math::mod_div;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Cipher(pub BigInt, pub BigInt);
 
 pub struct ElGamalPublicKey {
     pub params: ElGamalParameters,
@@ -29,6 +32,10 @@ impl ElGamalParameters {
     /// Determines whether the given value belongs to the group Z_p
     pub fn belongs_to_group(&self, value: &BigInt) -> bool {
         value.is_positive() && value < &self.p
+    }
+
+    pub fn q(&self) -> BigInt {
+        (self.p.clone().sub(1 as i32)).div(2)
     }
 }
 
@@ -89,7 +96,7 @@ impl ElGamal {
         message: &BigInt,
         nonce: &BigInt,
         public_key: &ElGamalPublicKey,
-    ) -> (BigInt, BigInt) {
+    ) -> Cipher {
         assert!(public_key.params.belongs_to_group(nonce));
 
         let modulus = &public_key.params.p;
@@ -99,11 +106,11 @@ impl ElGamal {
         let public_key_to_nonce = public_key.h.modpow(nonce, modulus);
         let g_to_m = generator.modpow(message, modulus);
         let d = g_to_m.mul(public_key_to_nonce) % modulus;
-        (c, d)
+        Cipher(c, d)
     }
 
-    pub fn decrypt(cipher: &(BigInt, BigInt), private_key: &ElGamalPrivateKey) -> BigInt {
-        let (c, d) = cipher;
+    pub fn decrypt(cipher: &Cipher, private_key: &ElGamalPrivateKey) -> BigInt {
+        let Cipher(c, d) = cipher;
 
         let modulus = private_key.params.p.clone();
         let sk = private_key.x.clone();
@@ -116,24 +123,24 @@ impl ElGamal {
     }
 
     pub fn add(
-        cipher1: &(BigInt, BigInt),
-        cipher2: &(BigInt, BigInt),
+        cipher1: &Cipher,
+        cipher2: &Cipher,
         params: &ElGamalParameters,
-    ) -> (BigInt, BigInt) {
-        let (c1, d1) = cipher1;
-        let (c2, d2) = cipher2;
-        (c1 * c2 % &params.p, d1 * d2 % &params.p)
+    ) -> Cipher {
+        let Cipher(c1, d1) = cipher1;
+        let Cipher(c2, d2) = cipher2;
+        Cipher(c1 * c2 % &params.p, d1 * d2 % &params.p)
     }
 
     pub fn sub(
-        cipher1: &(BigInt, BigInt),
-        cipher2: &(BigInt, BigInt),
+        cipher1: &Cipher,
+        cipher2: &Cipher,
         params: &ElGamalParameters,
-    ) -> (BigInt, BigInt) {
-        let (c1, d1) = cipher1;
-        let (c2, d2) = cipher2;
+    ) -> Cipher {
+        let Cipher(c1, d1) = cipher1;
+        let Cipher(c2, d2) = cipher2;
         let modulus = &params.p;
-        (
+        Cipher(
             mod_div(c1, c2, modulus).unwrap(),
             mod_div(d1, d2, modulus).unwrap(),
         )
@@ -148,20 +155,20 @@ impl ElGamal {
         product % &params.p
     }
 
-    pub fn decrypt_share(cipher: &(BigInt, BigInt), private_key: &ElGamalPrivateKey) -> BigInt {
+    pub fn decrypt_share(cipher: &Cipher, private_key: &ElGamalPrivateKey) -> BigInt {
         let sk = &private_key.x;
         let modulus = &private_key.params.p;
-        let (c, _) = cipher;
+        let Cipher(c, _) = cipher;
         c.modpow(sk, modulus)
     }
 
     pub fn decrypt_shares(
-        cipher: &(BigInt, BigInt),
+        cipher: &Cipher,
         decrypted_shares: &[&BigInt],
         params: &ElGamalParameters,
     ) -> BigInt {
         let d_product = Self::combine_shares(decrypted_shares, params);
-        let (_, d) = cipher;
+        let Cipher(_, d) = cipher;
 
         let modulus = params.p.clone();
 
@@ -468,7 +475,7 @@ mod tests {
         // E(0,β)= c1 * e_minus + e_prime
         let beta_enc = ElGamal::encrypt(&BigInt::from(0), &beta, &public_key);
 
-        let c1_e_minus = (
+        let c1_e_minus = Cipher(
             e_minus.0.modpow(&c1, &params.p),
             e_minus.1.modpow(&c1, &params.p),
         );
