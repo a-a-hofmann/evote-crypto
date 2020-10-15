@@ -49,7 +49,7 @@ pub fn hash_bytes(bytes: Vec<&Vec<u8>>) -> BigUint {
     }
     hasher.update(buffer);
     let hashed = &hasher.finalize()[..];
-    BigUint::from_bytes_be(hashed.into())
+    BigUint::from_bytes_be(hashed)
 }
 
 #[cfg(test)]

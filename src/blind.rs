@@ -16,12 +16,12 @@ pub fn verify_signature(
 ) -> bool {
     let message = hash_bytes(vec![&message]);
 
-    let exponent = rsa_public_component.exponent.clone();
-    let modulus = rsa_public_component.modulus.clone();
+    let verification = signature.modpow(
+        &rsa_public_component.exponent,
+        &rsa_public_component.modulus,
+    );
 
-    let verification = signature.modpow(&exponent, &modulus);
-
-    return verification == message;
+    verification == message
 }
 
 #[cfg(test)]
