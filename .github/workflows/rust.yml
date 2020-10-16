@@ -32,7 +32,7 @@ jobs:
           rustup target add wasm32-unknown-unknown --toolchain nightly
           cargo +nightly build --verbose --release --target wasm32-unknown-unknown
       - name: Run tests
-        run: cargo test --verbose --all-features
+        run: cargo test --verbose -- -Z unstable-options
 
   fmt:
     name: Rustfmt
