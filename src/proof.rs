@@ -57,18 +57,18 @@ impl SchnorrProof {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct RandomizedProofParameters {
-    alpha: BigInt,
-    c2: BigInt,
-    s2: BigInt,
+    pub alpha: BigInt,
+    pub c2: BigInt,
+    pub s2: BigInt,
 }
 
 pub struct ReEncryptionProof {
-    e_prime: Cipher,
-    t2: BigInt,
-    c1: BigInt,
-    c2: BigInt,
-    beta: BigInt,
-    s2: BigInt,
+    pub e_prime: Cipher,
+    pub t2: BigInt,
+    pub c1: BigInt,
+    pub c2: BigInt,
+    pub beta: BigInt,
+    pub s2: BigInt,
 }
 
 impl ReEncryptionProof {
@@ -235,14 +235,14 @@ impl ReEncryptionProof {
 
 #[derive(Default, Debug)]
 pub struct BallotProof {
-    a0: BigInt,
-    a1: BigInt,
-    b0: BigInt,
-    b1: BigInt,
-    c0: BigInt,
-    c1: BigInt,
-    r0: BigInt,
-    r1: BigInt,
+    pub a0: BigInt,
+    pub a1: BigInt,
+    pub b0: BigInt,
+    pub b1: BigInt,
+    pub c0: BigInt,
+    pub c1: BigInt,
+    pub r0: BigInt,
+    pub r1: BigInt,
 }
 
 impl BallotProof {
