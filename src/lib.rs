@@ -6,7 +6,12 @@
 #[cfg(any(feature = "std", test))]
 #[macro_use]
 extern crate std;
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
 
+#[allow(clippy::many_single_char_names)]
+pub mod blind;
 #[allow(clippy::many_single_char_names)]
 pub mod elgamal;
 #[allow(clippy::many_single_char_names)]
@@ -15,6 +20,8 @@ mod math;
 pub mod proof;
 #[allow(clippy::many_single_char_names)]
 pub mod rsa;
+
+pub mod hash;
 
 #[cfg(test)]
 mod tests {
