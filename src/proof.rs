@@ -24,7 +24,8 @@ impl SchnorrProof {
         assert!(nonce < q);
         let commitment: BigInt = generator.modpow(&nonce, &modulus);
 
-        let challenge = hash_args(vec![&unique_id, &public_key.h, &commitment]) % &q;
+        let hashed = hash_args(vec![&unique_id, &public_key.h, &commitment]);
+        let challenge = hashed.0 % &q;
 
         let response = (nonce + (challenge.clone() * sk) % &q) % &q;
 
@@ -44,7 +45,7 @@ impl SchnorrProof {
         let h_to_c = public_key.h.clone().modpow(&self.challenge, &modulus);
         let commitment = mod_div(&g_to_d, &h_to_c, &modulus).expect("Cannot compute mod_inverse");
 
-        let challenge = hash_args(vec![&unique_id, &public_key.h, &commitment]) % &q;
+        let challenge = hash_args(vec![&unique_id, &public_key.h, &commitment]).0 % &q;
 
         let lhs = generator.clone().modpow(&self.response, &modulus);
         let rhs = commitment * &public_key.h.modpow(&self.challenge, &modulus) % modulus;
@@ -93,7 +94,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-        .unwrap();
+            .unwrap();
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -131,12 +132,12 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-        .unwrap();
+            .unwrap();
 
         let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &t2]);
 
         // c1 = c - c2 % mod p
-        let c1 = (challenge - &randomized_params.c2) % &params.p;
+        let c1 = (challenge.0 - &randomized_params.c2) % &params.p;
 
         // beta = c1 * zeta + alpha
         let beta = (&c1 * zeta + &randomized_params.alpha) % &params.p;
@@ -225,7 +226,7 @@ impl ReEncryptionProof {
         // c = c1 + c2 % mod p
         let c1_plus_c2 = (&self.c1 + &self.c2) % modulus;
         let e_prime = ElGamal::sub(&beta_cipher, &c1_e_minus, &public_key.params);
-        let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &self.t2]);
+        let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &self.t2]).0;
         assert_eq!(challenge, c1_plus_c2);
         let first_condition = challenge == c1_plus_c2;
 
@@ -276,7 +277,7 @@ impl BallotProof {
         let fourth_condition = lhs == rhs;
         assert!(fourth_condition, "4th condition failed");
 
-        let rhs = hash_args(vec![
+        let hashed = hash_args(vec![
             &public_key.h,
             unique_id,
             &cipher.0,
@@ -285,8 +286,10 @@ impl BallotProof {
             &self.b0,
             &self.a1,
             &self.b1,
-        ]) % params.q();
-        let lhs = (&self.c0 + &self.c1) % params.q();
+        ]);
+        let hash_size = &hashed.1;
+        let rhs = hashed.0 % BigInt::from(*hash_size as u32);
+        let lhs = (&self.c0 + &self.c1) % &hashed.1;
         let fifth_condition = lhs == rhs;
         assert!(fifth_condition, "5th condition failed");
 
@@ -438,7 +441,7 @@ mod tests {
             "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
             16,
         )
-        .unwrap();
+            .unwrap();
 
         let verifies = proof.verify(&public_key, &unique_id);
         assert!(verifies);
@@ -506,6 +509,45 @@ mod tests {
         let c1: BigInt = BigInt::from_str_radix("7f05373f50ce8581a2aec000aaea32b244057ee699a7bc84ae286b975e3b80b792ce6d74ee6de09f7680cf63464d4ea20d10b54b93001ff445eeb2a2a5fb85ebdef82fe53961cd263a7ae4ed1553dd0d416a72cb378de6c4a7ac03ab3b65574429dd5a14001c6b9ae7ea9950c2f5a254799dd15bcc85c05a44e7ebaba907b32bfa7eebf28ba75f2e38c80d22ea430fa958b31d019b62b8790f2659853d5f9ae97022e845848cad5268aeb652d53a5746044d19c4fa2137e6b21ffb788b474b85150cd9f87880954cb7dc871fdbd759d6029ccde5ea57161241de057e84bb677171a8b35c110044d778b6ef5b1fe50e78f88226b6aaf4b6e7592f8324708e1400", 16).unwrap();
         let r0: BigInt = BigInt::from_str_radix("1428fc9f8c6c436c6e7c66bc29b10fa0fb9aa8fe31ccd06d3ecf30211764c478eca9a90f94e8358f8ccf255568a1e5b5dfcd35b24c5ab7c6d594e04e00a8cebcbdefa8c0982bacdcf78d31d1ef3e1606cc5edd84d318d52d1c2f1d90e5bd37b07014251364f0a9380b62f520a4af7abef8a5230b77fe0e3b6afc019171a6dca9153e416e9ba5ff0cfbacbf9761eebd6ce7f0c26c5412404c211d36bca307b5f669d864a9f24435b32d58cdebf74f02a09a2cc9f1cb62f81a46532f46ea34b05e0241ebfeb235271596388aff737803dd39d034f9d2ff63bb0aa6fb8d5f25ece525100986cc8b3624696238af415f51f7255ad4e9c92e0df1c5c6c3ad162ca3", 16).unwrap();
         let r1: BigInt = BigInt::from_str_radix("7bce661ebab18abeba4e7beb78515b19f670069cd41ac0d147ec796b3bfd1a3b0111ccbec76b29b59b8ce581217f54b332f30b1835dfb7d96e6a4ec5f17f070e9b567c86efb96a1df3aff158392f33ec9931df8fa106aad8227150b711625e3036e5d07b0ee0efe29ab2c222d73524d5e4ffc215f1a28ccf955769863f6c5f202c4f36b88518f3d7b2998f33c6778057d8888381b1771d464228afd57affc4441e40aed7706be82163820ec793186ddf6d4a123d98ced9f2e3fd8d73cd7ddf791ad46cb64d0ffc500aa8bb5d5a620f9125c1e95e3fc035656cd747b4bba93f4f1cfcc7440a91016fc94834413fd490ee9412237af9e102a66decd6e4805de073", 16).unwrap();
+
+        let proof = BallotProof {
+            a0,
+            a1,
+            b0,
+            b1,
+            c0,
+            c1,
+            r0,
+            r1,
+        };
+
+        let verifies = proof.verify(&encrypted1, &public_key, &unique_id);
+        assert!(verifies);
+    }
+
+    #[test]
+    fn test_ballot_proof_2_generated_in_js_lib() {
+        let unique_id = BigInt::from_str_radix("f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600", 16).unwrap();
+
+        let h = BigInt::from_str_radix("c1d443ca84318828fa9f7542ac74b13fb45fc44bf49c73c28281704479475e5326dd1a86eb7deca46629fb1c5b4a081b30088660b29a82d26e9194df6be3153dea8266706e47295c2846934e45e3f9d6e51a103fa6975015e9923c31f4c72d5b", 16).unwrap();
+        let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a63a3620ffffffffffffffff", 16).unwrap();
+        let g = BigInt::from(2);
+        let params = ElGamalParameters { p, g };
+        let public_key = ElGamalPublicKey { h, params };
+
+        let encrypted1 = Cipher(
+            BigInt::from_str_radix("341c9ec6e25448efc6e411b624b7504ae922f5fbdebc43b2c7401f6b302db041cdb915bef97f5cc68651da931bc97054275c3ed4104b6515271fdccd3779718da429774d6abca7b4cf0c0f8c13f8a35028ac583ca7e34b2ead14511265e2577d", 16).unwrap(),
+            BigInt::from_str_radix("e9699b2ac72ab316663636de79aeafddca6c56485ef2f89dad684c9046da60ca4a6e7ae81767f39f258a3e759c8d890020ec1605796e9b549d5a8d8162b13fb1e7b8d58ddb87e6a855b086b02287d6331b174eb5a75ce090020a4cf71583b4ef", 16).unwrap(),
+        );
+
+        let a0: BigInt = BigInt::from_str_radix("5f31df3504caaf32da51dd7db271f6d349cd486e1b6b622122f1b5fa5b83d37369631e90e5bd98da836ef61a724a8864a6588630a9cdfc771e06fe639b124a320e4679b9042617e17ee052771e2c95003855c91df212645490ae3d75dd8f8439", 16).unwrap();
+        let a1: BigInt = BigInt::from_str_radix("ccc32b68e512716955679f30296e7a9e49cafcc98df422ba0e48b1d5d379d35412023ed35568fc097791f457d981745a8856de01269ec09c99fad62ab5cca30155224d7ab927ea2b77a63ad5dfdc7d5967659fec02dbecb90e0d8e7194ecc4d4", 16).unwrap();
+        let b0: BigInt = BigInt::from_str_radix("648f42198b1c3c84191568523c117d02b126f9027112c66b2070cd2ad9fc6ccf0d7a0ddde708b9c2a2e94dc7d0a133dac8952850c8baf65ebfe2549f99e0920df04c823230c16fbb52126c15615f723790fd40f56f987bdc965ed03db5109e4f", 16).unwrap();
+        let b1: BigInt = BigInt::from_str_radix("70b228fe0af7783295e61566970de61d6d587cb69bcaeb2cc15d5adcf7a33f3f8763489dc7c49658b3a38260d7a64e3dc01a2f0855dba9e552ae741fb01c4274b0efa378e1ae5d4dde7f6c43e77491ca51e750ace28722ea89a1f7ef8821002f", 16).unwrap();
+        let c0: BigInt = BigInt::from_str_radix("7166641571fed9300d61aff390d291f7f8465111ecdc40836dd40206bd2a005aac1c5ab0f977f9399556a25a5ad967b923d2af26cd9df85c0c0017d68a6e84433133c679b2c8626812c2f9efb532a35986f3895cebded5b373e5669f0b2481", 16).unwrap();
+        let c1: BigInt = BigInt::from_str_radix("26", 16).unwrap();
+        let r0: BigInt = BigInt::from_str_radix("83e3f77f37d20d7e3220826029fe2728600001c3b6877bbdbeb7628a1715b219cdbe634445aaa6a63a1902e6e152af6fd83b0450f1772250fae91db8e396008c6002a1541e40816e80b1f4f2c256cc7363ecd7790b41ac21bf89b0c891707c", 16).unwrap();
+        let r1: BigInt = BigInt::from_str_radix("2488f6ea0d237a502ef8d500f3d3d6cd014c84ea8977a6218386ff7f68bb515fded1e553703c7cd57e987a0110ea64bdd540b9d1315d1d390ba3dee4b7e0611a25fd2845a94976426c671168cfc2131682c68bb912e08c34d4eb3c251dbb0dcf", 16).unwrap();
 
         let proof = BallotProof {
             a0,

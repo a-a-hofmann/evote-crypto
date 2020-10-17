@@ -20,10 +20,11 @@ pub fn hash_fixed(arg1: &BigInt, arg2: &BigInt, arg3: &BigInt) -> BigInt {
 }
 
 pub fn hash_args_variadic(args: &[&BigInt]) -> BigInt {
-    hash_args(args.to_vec())
+    hash_args(args.to_vec()).0
 }
 
-pub fn hash_args(args: Vec<&BigInt>) -> BigInt {
+
+pub fn hash_args(args: Vec<&BigInt>) -> (BigInt, usize) {
     let mut hasher = Blake2b::new();
     let mut buffer: Vec<u8> = vec![];
 
@@ -35,7 +36,8 @@ pub fn hash_args(args: Vec<&BigInt>) -> BigInt {
     hasher.update(buffer);
 
     let hash = &*hasher.finalize();
-    BigInt::from_bytes_be(Sign::Plus, hash)
+    let hash_size_in_bits = Blake2b::output_size() * 8;
+    (BigInt::from_bytes_be(Sign::Plus, hash), hash_size_in_bits)
 }
 
 /// Computes a sha256 of a message in bytes.
@@ -56,7 +58,6 @@ pub fn hash_bytes(bytes: Vec<&Vec<u8>>) -> BigUint {
 mod tests {
     use hex_literal::hex;
     use num_bigint::BigInt;
-
     use sha2::{Digest, Sha256};
 
     use crate::hash::{hash_args, hash_args_variadic, hash_fixed};
@@ -88,6 +89,6 @@ mod tests {
         let hashed3 = hash_args(vec![&arg1, &arg2, &arg3]);
 
         assert_eq!(hashed1, hashed2);
-        assert_eq!(hashed1, hashed3);
+        assert_eq!(hashed1, hashed3.0);
     }
 }
