@@ -94,7 +94,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-            .unwrap();
+        .unwrap();
 
         // c1 = c - c2 % mod p
         let c1 = (challenge - &randomized_params.c2) % &params.p;
@@ -132,7 +132,7 @@ impl ReEncryptionProof {
             &zv_to_c2,
             &params.p,
         )
-            .unwrap();
+        .unwrap();
 
         let challenge = hash_args(vec![&e_prime.0, &e_prime.1, &t2]);
 
@@ -441,7 +441,7 @@ mod tests {
             "8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48",
             16,
         )
-            .unwrap();
+        .unwrap();
 
         let verifies = proof.verify(&public_key, &unique_id);
         assert!(verifies);
@@ -449,7 +449,11 @@ mod tests {
 
     #[test]
     fn test_ballot_proof_0_generated_in_js_lib() {
-        let unique_id = BigInt::from_str_radix("f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600", 16).unwrap();
+        let unique_id = BigInt::from_str_radix(
+            "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
+            16,
+        )
+        .unwrap();
         let encrypted0 = Cipher(
             BigInt::from_str_radix("35d829e6a73d25b97543c274db920aa35d19df7d46c6a5e8a71b20eed7e96999361ce14e9497b5142bea4f9ef311ae8da5a5e5f56d058010779805636e71b60af2aa8da1e516b238cfb0ceaa8aed238990e5def444658cbfcc2a660a0daed72f", 16).unwrap(),
             BigInt::from_str_radix("2054048385028a5fc06e1a13a9d65dbe65cc8d2923c12c530861d57d36af6c39830379cf5644b7674632cea381c898f1ceefb81f85acb799e548e5e0fbcdb3c0e54b7d69c2747cd46556d517d0569a7b266dc7287816637195d134d77af14ff5", 16).unwrap(),
@@ -488,7 +492,11 @@ mod tests {
 
     #[test]
     fn test_ballot_proof_1_generated_in_js_lib() {
-        let unique_id = BigInt::from_str_radix("f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600", 16).unwrap();
+        let unique_id = BigInt::from_str_radix(
+            "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
+            16,
+        )
+        .unwrap();
 
         let h = BigInt::from_str_radix("4e26ca22986f59a6d2161ca69d377609db78bb89eb3c485c34d6ed8eec073ad726aab29727c6a84eb3e2bcd9c1f982e25db989465e8b834fb5abefc9ef31a019e6622db5a5ffd5910f963c3e9c6b144a75f9eb27c42f9e9f518de045ef34f654", 16).unwrap();
         let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a63a3620ffffffffffffffff", 16).unwrap();
@@ -527,7 +535,11 @@ mod tests {
 
     #[test]
     fn test_ballot_proof_1_modp14_generated_in_js_lib() {
-        let unique_id = BigInt::from_str_radix("f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600", 16).unwrap();
+        let unique_id = BigInt::from_str_radix(
+            "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
+            16,
+        )
+        .unwrap();
 
         let h = BigInt::from_str_radix("6719296bcbb4d866bb644d80f44b522b5ef782f9276bc39beb929852fdb02dd6b517f1f0a03a189269654b5bda33dba81cb3830dac152dc9e15e72bbc6427b869d2775de321155671a5a553b1fe80f4276f0f4f0ce42073ab28f78e6c579b2c34bd6f55ee7d21ad5138284dc84db79fca9c2da817f195db4b3bef14e0e2786478fe4e4a40a001aee49c7a9e1bef202e0c142c2c741d13a05969d66cba166e4dbf35521841415ec104246c65606fcccc86652bf5cdbbd79015f8fcf15589c90a52f8ed554fdde305e475f4c4b4f3c0ebde0d2bfabd2c75925b46a25398b94edb9ca0510133fdc7cf517da1a9871ab86b39e135e84bb46964473955a8f407accd8", 16).unwrap();
         let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();

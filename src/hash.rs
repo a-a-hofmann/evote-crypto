@@ -23,7 +23,6 @@ pub fn hash_args_variadic(args: &[&BigInt]) -> BigInt {
     hash_args(args.to_vec()).0
 }
 
-
 pub fn hash_args(args: Vec<&BigInt>) -> (BigInt, usize) {
     let mut hasher = Blake2b::new();
     let mut buffer: Vec<u8> = vec![];
