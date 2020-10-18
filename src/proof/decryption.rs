@@ -12,7 +12,13 @@ pub struct DecryptionProof {
 }
 
 impl DecryptionProof {
-    pub fn new(cipher: &Cipher, public_key: &BigInt, private_key: &BigInt, params: &ElGamalParameters, nonce: &BigInt) -> Self {
+    pub fn new(
+        cipher: &Cipher,
+        public_key: &BigInt,
+        private_key: &BigInt,
+        params: &ElGamalParameters,
+        nonce: &BigInt,
+    ) -> Self {
         let u = cipher.0.modpow(&nonce, &params.p);
         let v = params.g.modpow(&nonce, &params.p);
 
@@ -21,12 +27,7 @@ impl DecryptionProof {
         let s = (nonce + challenge * private_key) % params.q();
         let d = cipher.0.modpow(&private_key, &params.p);
 
-        DecryptionProof {
-            d,
-            u,
-            v,
-            s,
-        }
+        DecryptionProof { d, u, v, s }
     }
 
     pub fn verify(&self, cipher: &Cipher, public_key: &BigInt, params: &ElGamalParameters) -> bool {
@@ -73,10 +74,7 @@ mod tests {
         let x1 = BigInt::from_str_radix("5f3a63e3b6e8c8a7063dc9d5eedd05eeeafd5b4881405cab5956030b135d633231265355ee149b4a6f383b8cb7b6b0c82fcb4981a1a4f186e2b8223851638f1a7c07a3d827608a476a0b3be0cdaf1dd8772b4215c6e90854671e55b0b89301065dfe81836cf303fa318a8b4b04e4596e9bdbb476eed488ee89079e2dcc146badddc08f04726a2da38c273eefbb90d487e36c9b4fcd56d289e54b868dc82b67656ac1f0112125e752fce353c2b5f743f54fff052d7a5fdde32065f53b6603c1013939936f67753cb5b0bd3a502ba8867b9b8b20ad4f186028d4a5e53eab7efcf61a08f8bfa39b692d1a1fe3e10e1e43e1f59f75bd562089099dc33da616f2ed", 16).unwrap();
         let x2 = BigInt::from_str_radix("92c38f9e7174f2d3b597b2a3b0b1d5c5e8fbb70de8d810c73e79d7abf469cfc139efbace7a5743029bfdb972140424a725f26a7a7f252e927150998b54f03813ee47a537a8856028831507a806575dac03e0a15b0f4e66e9a77cba4da68e55363927db3384140d8416e7cb238c8561833efb483e4e65f17e81537a5ccc11c629fddc2948b45ce1e17786c5293d8b751bfd30e13c0c939e3bfce9ec33da6e4ee866daec5e6d7a051434b93a0b05f99a4957fbbb236e1133f549c35258b433bd193cd1db55c6720e34b3578b092dac542754712332fbd8c9f2c548e0ec095b0d5d5f044dea99c398f1139a678e33e71d4101a1af15405e7d049c2801a75a1aa0", 16).unwrap();
 
-        let params = ElGamalParameters {
-            p,
-            g,
-        };
+        let params = ElGamalParameters { p, g };
 
         let private_key1 = ElGamalPrivateKey::new(&x1, params.clone());
         let public_key1 = ElGamalPublicKey::new(&private_key1);
@@ -84,16 +82,29 @@ mod tests {
         let private_key2 = ElGamalPrivateKey::new(&x2, params.clone());
         let public_key2 = ElGamalPublicKey::new(&private_key2);
 
-        let public_key = ElGamalPublicKey::combine_multiple_vec(&vec![public_key1.clone(), public_key2.clone()]);
+        let public_key =
+            ElGamalPublicKey::combine_multiple_vec(&vec![public_key1.clone(), public_key2.clone()]);
         let message = BigInt::from(12345);
         let nonce = BigInt::from(123);
 
         let encrypted = ElGamal::encrypt(&message, &nonce, &public_key);
 
-        let proof1 = DecryptionProof::new(&encrypted, &public_key1.h, &private_key1.x, &params, &BigInt::from(3));
+        let proof1 = DecryptionProof::new(
+            &encrypted,
+            &public_key1.h,
+            &private_key1.x,
+            &params,
+            &BigInt::from(3),
+        );
         assert!(proof1.verify(&encrypted, &public_key1.h, &params));
 
-        let proof2 = DecryptionProof::new(&encrypted, &public_key2.h, &private_key2.x, &params, &BigInt::from(5));
+        let proof2 = DecryptionProof::new(
+            &encrypted,
+            &public_key2.h,
+            &private_key2.x,
+            &params,
+            &BigInt::from(5),
+        );
         assert!(proof2.verify(&encrypted, &public_key2.h, &params));
     }
 
@@ -109,10 +120,7 @@ mod tests {
         let x1 = BigInt::from_str_radix("5f3a63e3b6e8c8a7063dc9d5eedd05eeeafd5b4881405cab5956030b135d633231265355ee149b4a6f383b8cb7b6b0c82fcb4981a1a4f186e2b8223851638f1a7c07a3d827608a476a0b3be0cdaf1dd8772b4215c6e90854671e55b0b89301065dfe81836cf303fa318a8b4b04e4596e9bdbb476eed488ee89079e2dcc146badddc08f04726a2da38c273eefbb90d487e36c9b4fcd56d289e54b868dc82b67656ac1f0112125e752fce353c2b5f743f54fff052d7a5fdde32065f53b6603c1013939936f67753cb5b0bd3a502ba8867b9b8b20ad4f186028d4a5e53eab7efcf61a08f8bfa39b692d1a1fe3e10e1e43e1f59f75bd562089099dc33da616f2ed", 16).unwrap();
         let x2 = BigInt::from_str_radix("92c38f9e7174f2d3b597b2a3b0b1d5c5e8fbb70de8d810c73e79d7abf469cfc139efbace7a5743029bfdb972140424a725f26a7a7f252e927150998b54f03813ee47a537a8856028831507a806575dac03e0a15b0f4e66e9a77cba4da68e55363927db3384140d8416e7cb238c8561833efb483e4e65f17e81537a5ccc11c629fddc2948b45ce1e17786c5293d8b751bfd30e13c0c939e3bfce9ec33da6e4ee866daec5e6d7a051434b93a0b05f99a4957fbbb236e1133f549c35258b433bd193cd1db55c6720e34b3578b092dac542754712332fbd8c9f2c548e0ec095b0d5d5f044dea99c398f1139a678e33e71d4101a1af15405e7d049c2801a75a1aa0", 16).unwrap();
 
-        let params = ElGamalParameters {
-            p,
-            g,
-        };
+        let params = ElGamalParameters { p, g };
 
         let private_key1 = ElGamalPrivateKey::new(&x1, params.clone());
         let public_key1 = ElGamalPublicKey::new(&private_key1);
@@ -122,7 +130,11 @@ mod tests {
         let public_key2 = ElGamalPublicKey::new(&private_key2);
         assert_eq!(public_key2.h, h2);
 
-        assert_eq!(h, ElGamalPublicKey::combine_multiple_vec(&vec![public_key1.clone(), public_key2.clone()]).h);
+        assert_eq!(
+            h,
+            ElGamalPublicKey::combine_multiple_vec(&vec![public_key1.clone(), public_key2.clone()])
+                .h
+        );
 
         let proof1 = DecryptionProof {
             d: BigInt::from_str_radix("fd9bf8617c4fda9cf19cb329ca0debfe73de6e3d0ef4cacafc923b423e1ec1e86c4a7bd743f4f53d3ad518c03ff3cb93d20f42c0cea40d7d4d8db1010913b308ce89c4d2a555ff4b53677bd727f9ed9ca847f3eb8a3c5866d813abfe5f32e88cac5caa49f79e48cba1f8027089424c8ef87b9ac426d33c9272db3e67cae2a16a37f13941a89e899b0a72d93c2c177310d41f74a7b46497bbe04f6210ae9ceb09d204e484aece82d6a5395fe8281c2fe18ee8f1c5ce9132f44375377c91d1b6a8e03b2ce89c1fdbeb64d70f3a4d4f8d08ccc4aa6297080b1c64934772394a6f68da18a2e249a864ae85fd0892b0a620e5b27fe23f1fb65fbd719ded11ba59277", 16).unwrap(),

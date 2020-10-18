@@ -323,7 +323,8 @@ mod tests {
         assert_eq!(pk.h, BigInt::from(70));
         assert_eq!(pk.params, params);
 
-        let pk: ElGamalPublicKey = ElGamalPublicKey::combine_multiple_vec(&vec![public_key1, public_key2, public_key3]);
+        let pk: ElGamalPublicKey =
+            ElGamalPublicKey::combine_multiple_vec(&vec![public_key1, public_key2, public_key3]);
 
         assert_eq!(pk.h, BigInt::from(70));
         assert_eq!(pk.params, params);
