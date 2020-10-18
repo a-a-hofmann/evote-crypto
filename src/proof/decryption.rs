@@ -83,7 +83,7 @@ mod tests {
         let public_key2 = ElGamalPublicKey::new(&private_key2);
 
         let public_key =
-            ElGamalPublicKey::combine_multiple_vec(&vec![public_key1.clone(), public_key2.clone()]);
+            ElGamalPublicKey::combine_multiple_vec(vec![public_key1.clone(), public_key2.clone()]);
         let message = BigInt::from(12345);
         let nonce = BigInt::from(123);
 
@@ -132,7 +132,7 @@ mod tests {
 
         assert_eq!(
             h,
-            ElGamalPublicKey::combine_multiple_vec(&vec![public_key1.clone(), public_key2.clone()])
+            ElGamalPublicKey::combine_multiple_vec(vec![public_key1.clone(), public_key2.clone()])
                 .h
         );
 

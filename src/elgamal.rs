@@ -61,16 +61,14 @@ impl ElGamalPublicKey {
         }
     }
 
-    pub fn combine_multiple_vec(keys: &Vec<ElGamalPublicKey>) -> Self {
+    pub fn combine_multiple_vec(keys: Vec<ElGamalPublicKey>) -> Self {
         assert!(!keys.is_empty());
         let params = keys[0].params.clone();
         let mut h = BigInt::from(1);
         keys.iter().for_each(|key| h *= &key.h);
+        h %= &params.p;
 
-        ElGamalPublicKey {
-            h: h % &params.p,
-            params: params.clone(),
-        }
+        ElGamalPublicKey { h, params }
     }
 
     pub fn combine_multiple(&self, others: &[&ElGamalPublicKey]) -> Self {
@@ -324,7 +322,7 @@ mod tests {
         assert_eq!(pk.params, params);
 
         let pk: ElGamalPublicKey =
-            ElGamalPublicKey::combine_multiple_vec(&vec![public_key1, public_key2, public_key3]);
+            ElGamalPublicKey::combine_multiple_vec(vec![public_key1, public_key2, public_key3]);
 
         assert_eq!(pk.h, BigInt::from(70));
         assert_eq!(pk.params, params);
