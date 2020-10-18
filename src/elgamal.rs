@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::ops::{Div, Mul, Sub};
 
 use num_bigint::BigInt;
@@ -9,11 +10,13 @@ use crate::math::mod_div;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Cipher(pub BigInt, pub BigInt);
 
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ElGamalPublicKey {
     pub params: ElGamalParameters,
     pub h: BigInt,
 }
 
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ElGamalPrivateKey {
     pub params: ElGamalParameters,
     pub x: BigInt,
@@ -55,6 +58,18 @@ impl ElGamalPublicKey {
         ElGamalPublicKey {
             h: &self.h * &other.h % &self.params.p,
             params: self.params.clone(),
+        }
+    }
+
+    pub fn combine_multiple_vec(keys: &Vec<ElGamalPublicKey>) -> Self {
+        assert!(!keys.is_empty());
+        let params = keys[0].params.clone();
+        let mut h = BigInt::from(1);
+        keys.iter().for_each(|key| h *= &key.h);
+
+        ElGamalPublicKey {
+            h: h % &params.p,
+            params: params.clone(),
         }
     }
 
@@ -304,6 +319,11 @@ mod tests {
         assert_eq!(pk.params, params);
 
         let pk: ElGamalPublicKey = public_key1.combine_multiple(&[&public_key2, &public_key3]);
+
+        assert_eq!(pk.h, BigInt::from(70));
+        assert_eq!(pk.params, params);
+
+        let pk: ElGamalPublicKey = ElGamalPublicKey::combine_multiple_vec(&vec![public_key1, public_key2, public_key3]);
 
         assert_eq!(pk.h, BigInt::from(70));
         assert_eq!(pk.params, params);
