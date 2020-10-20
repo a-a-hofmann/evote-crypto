@@ -22,6 +22,7 @@ impl BallotProof {
         cipher: &Cipher,
         public_key: &ElGamalPublicKey,
         unique_id: &BigInt,
+        wfs: bool,
     ) -> bool {
         let params = &public_key.params;
         let ElGamalParameters { p, g } = params;
@@ -47,18 +48,31 @@ impl BallotProof {
         let fourth_condition = lhs == rhs;
         assert!(fourth_condition, "4th condition failed");
 
-        let hashed = hash_args(vec![
-            &public_key.h,
-            unique_id,
-            &cipher.0,
-            &cipher.1,
-            &self.a0,
-            &self.b0,
-            &self.a1,
-            &self.b1,
-        ]);
-        let hash_size = BigInt::from(hashed.1 as u32);
-        let rhs = hashed.0 % &hash_size;
+        let challenge: (BigInt, usize);
+
+        if wfs {
+            challenge = hash_args(vec![
+                &public_key.h,
+                unique_id,
+                &self.a0,
+                &self.b0,
+                &self.a1,
+                &self.b1,
+            ]);
+        } else {
+            challenge = hash_args(vec![
+                &public_key.h,
+                unique_id,
+                &cipher.0,
+                &cipher.1,
+                &self.a0,
+                &self.b0,
+                &self.a1,
+                &self.b1,
+            ]);
+        }
+        let hash_size = BigInt::from(challenge.1 as u32);
+        let rhs = challenge.0 % &hash_size;
         let lhs = (&self.c0 + &self.c1) % &hash_size;
         let fifth_condition = lhs == rhs;
         assert!(fifth_condition, "5th condition failed");
@@ -73,10 +87,97 @@ impl BallotProof {
 
 #[cfg(test)]
 mod tests {
-    use crate::elgamal::{Cipher, ElGamalParameters, ElGamalPublicKey};
-    use crate::proof::ballot::BallotProof;
     use num_bigint::BigInt;
     use num_traits::Num;
+
+    use crate::elgamal::{Cipher, ElGamalParameters, ElGamalPublicKey};
+    use crate::proof::ballot::BallotProof;
+
+    #[test]
+    fn test_ballot_proof_0_wfs_generated_in_js_lib() {
+        let unique_id = BigInt::from_str_radix(
+            "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
+            16,
+        )
+            .unwrap();
+
+        let encrypted0 = Cipher(
+            BigInt::from_str_radix("7c0c38fca8eb93daa862825a21b552e178a2edf8e07c20fcfa6b0dc90fe1f6a53460fed1e667dc5a5f41686e7a75fad9a1e929bd2551f55789dbefbe79948bf865c2a26b57f80d730fe46adb3597b0a268dd0bbab20266d85aa7718c93091b47fc66c78bb1b712602632564100d7826de4bbd4cb06e165132fd9033deb88876dda591b5211de51a0674a389c672a87c7ee345c6fc82766ce4f74e4b28a093af0812b8fa3d2b71dd4d8e6ab1d2f996ff0bbf508c7ccd83344ea3aece9abc46fc5ba9aabd025093e48ccfc4c7bc350c88317f4e207f09352b71dc721edbc7d311f39c5bb947317fca49779f349c258c6093257038117888533b91d3cef8256e9e9", 16).unwrap(),
+            BigInt::from_str_radix("690715c31aa9855095f97278eae1abc82940b4e453b9f1e7db64a38f4e239a3e043094b024a1bc73e656cb308a3c135c1dad28447c63dc64747883c4ee19c1b5a7dc268d0bd81b2f187c7124c6262dd50726b6b99bb4952fed7d7b0d5ba451554b4123e132d90bd29590f6be4423974a349ea5aedddf02501aa7986b3147358c215cb6263b33100163029e6e590e7e5c28ac215d3bc8b53079b53939d205ffc4b5eff6d666c41f8bdc72299fcdb4066644de098b6e5e5c798dac06322597e1b7c8c7a7474e1766b49891b7a60bc4d41cce53a90b7cbd9b6056a5a8a2dcd95e9fb09af8ab76f67fda72b6f1c3d3124578bed653126aeedd66023591f868c9ec01", 16).unwrap(),
+        );
+
+        let h = BigInt::from_str_radix("2062d017d762f8b88c245d7e241805df84ae29232fb36f6138590a42c6b47d4a81ff072ce7e6d8741f8b56fe8165642754765fc483a730de3b4860674ccdbe060c3a7e810ef3e3f4b28dd095fe1f61ae20c588aef0b06455389eef64ec927ed37a46ca95ec48ced4abcfa74611e29065487178efad87f494d55ab3e152a0cd8923219c9ffc69c94ecafbcede1e267e55cc9051ea6b9e99062393147ea39296c9d0312a7f4e8017fda8dbab3f029849eeba601aac5bc74fcd47fe9e9ce1510df902852ddbb1180566fe3188d646a281f89421782d3cc076996f3cfef8999827c7630a4d90290dcae6d683f223d1d7f85f91a096720e44ba05c8b2b62b27f5a31a", 16).unwrap();
+        let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
+        let g = BigInt::from(2);
+        let params = ElGamalParameters { p, g };
+        let public_key = ElGamalPublicKey { h, params };
+
+        let a0: BigInt = BigInt::from_str_radix("c32b48940e2b83a2aedded083a4c85ebc5cb2f72ec72bdfab810fb9a9fff9a2c0e506498bafde9023444c2fe8fd836a9f1cb550f52d60219421910f43a47f64280256006a0e7644818d6af3f8d4f0d2f282135b39ae2d2ceba788fd349dac80da981f16ed0ded8a8cd369ad57a7a167cb4dc8d68044f832c5e3f89b6c52df2afd56fb95f6dd53adc5f93cf3e52a08ccde4cb9ad512eec59e57578681b9d43f517b5e632f7dde92d311e0197ecce9e26b157e8b0e93a514213206ebc981dbd21ff82f4f6aed49faf164cd87d09164d88878f9192836acc8d00aa737ef915ee46662554b1246e178ebb9b0e1e1dd50e22538dd6781308943e4034fd8685d8df97e", 16).unwrap();
+        let a1: BigInt = BigInt::from_str_radix("5010c5a97aba698d909cec584e2108874abe936bfbb43fe6e3e27e5b3ac16388f2ed11397010f9d2ed31c5463e08d21c6b42cf036e7db5c37ce478015a90349fa80799196d5bfa3b57e08bc2fbf9da9f956c8e0ad33422cb6f7d153ef223748033f8dabb1c1afe550f68c0e0192c7821c1161023806989f02b0d2a96c835e04d5c9de4a8e10820d2a0bd3c6ebbceea2f699c683a929f586a410bc3b8539708905b2f9b20a75bd259156aae098c28b551e2eddae1c4ac5abead916ac20ced87397fba8bd3e6edcfaee1d79a4df4380c2a0330c64ac35d294ee8e3973e09fc40d9e9624eabbb241afef7b02bd49864a9ed158b74f249a26ef9a44cd0668726d990", 16).unwrap();
+        let b0: BigInt = BigInt::from_str_radix("3939ab608a3d31b4e827bc5df6a9160abd1b8652986ba24d73a06c7f91c4262a01c59b1c8251c94226536c2100184240e470a9e90b0e52f894bb8b6e28736b76d02827920e79a40b108d9ee795e25964205221bd5aefef86c3c4f285fa80c48f9864c01c4541a0c878c7b78df0acccec2b21118d4a38c89b0940005b760d5faef37241a62e719f2f147628912cdce4badb33ffbd603fbc3930d9513e55624929509ef22c224fee19f5a7dfe0e34467d73bf7c8540512b5237e7ee82965a6f6e6e812fe9101e2937c12662eda52bd4852c900c8d9f9add09c78b354408f835eb8d95fdc7551f554cf6f8d626c142f41433086c690490b59479edf1da0d12ba4cf", 16).unwrap();
+        let b1: BigInt = BigInt::from_str_radix("312c1161a61e6e2f9303a11f5a7480e760ac3e4a8025821b53bd42ccc30d89c395727f9a84605680117213b45ae5129154ba581173656cf2f749ed2ad31edb19ada541e5b2fff1d75a19bc6de4fab267f4d56bf174173b78e51c88ce84c1a1fa31853ea8d4b6f92d83ed158b4cab460665bcc4022d6c29033b3985116d83c9442ff0747fb8c843a79bef650da960e5663eba102ab3767c1a0bbaa63f7502a12a3485b3fd9ce885d767fdf9ecf61b33a49c21e55aa4b3a1402ff5b8616e1c6668ebae7ba001d9da1b3b00043a1e24a3fcbd83e713688505bc9c56ef9b804c184e594a5d272991029b364dedb2aefbeb98184ed8a9cccc9e0221ff9d7650714030", 16).unwrap();
+        let c0: BigInt = BigInt::from_str_radix("11d", 16).unwrap();
+        let c1: BigInt = BigInt::from_str_radix("74", 16).unwrap();
+        let r0: BigInt = BigInt::from_str_radix("539e775b0d5ecf4ded87606a61ec11f6d68490c8861c9ce0212807f04a7feab9575ae34e9adfe9fcba68684187b46bbab45414c408e371c73e5422885d7436d281845bd621a1cccb01f7421956f7815932462eeed0ee07939d515267aac1fb1ca5a2bbe1a638ef1633baa43501f0cd005cdae6b8849ff5936ed1a81afce1fad616d101a4db0a56eb2224397dc4bf2486b8417ec90a0b99487edd82b4ffa27aa340192b751aa845e2d88e7ff4373bf79ff160c7fe05da627a258217769ccb4a3228edc01cc53b29a3b43932c1331a8dd04474bce5cd5b36fc6e58eb9bbc54dc67b7bd04d1a6deefa4b57b8a5af814af1b8fcb5973d7ed2308c37006de3af10442", 16).unwrap();
+        let r1: BigInt = BigInt::from_str_radix("df8116d52abd7dda39006cb27e7473acc8a768ae3f09346faabd5c0b7ea05bff281ffa2df1522d5db6135127d5574b97748abedb99ee38f75ff386066349884dce29b0d204f69e9aecc20d17e543f7c492ce132f7292a25ecb07a078a860d076bfd63d6e354258b7210c6a69fef079bcfb3a64dc199592683b48daa88ced3829fbacec4839154541e4aa4e004c670d4f86ef54fd02c5968b5f97dd7b392c4cb2b51cea5434751b85f36657700fea872812f87f7762f81c18bd38e99414a0f573937d4e78c4013f6abf43b500589facf7330073872846a1770b804b9011b5adc4166615f4e76058352e2cdc3d392f12bca575a4c4a1fce0d3cbbd32b3e1a5aa", 16).unwrap();
+
+        let proof = BallotProof {
+            a0,
+            a1,
+            b0,
+            b1,
+            c0,
+            c1,
+            r0,
+            r1,
+        };
+
+        let verifies = proof.verify(&encrypted0, &public_key, &unique_id, true);
+        assert!(verifies);
+    }
+
+    #[test]
+    fn test_ballot_proof_1_wfs_generated_in_js_lib() {
+        let unique_id = BigInt::from_str_radix(
+            "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
+            16,
+        )
+            .unwrap();
+
+        let encrypted1 = Cipher(
+            BigInt::from_str_radix("7c0c38fca8eb93daa862825a21b552e178a2edf8e07c20fcfa6b0dc90fe1f6a53460fed1e667dc5a5f41686e7a75fad9a1e929bd2551f55789dbefbe79948bf865c2a26b57f80d730fe46adb3597b0a268dd0bbab20266d85aa7718c93091b47fc66c78bb1b712602632564100d7826de4bbd4cb06e165132fd9033deb88876dda591b5211de51a0674a389c672a87c7ee345c6fc82766ce4f74e4b28a093af0812b8fa3d2b71dd4d8e6ab1d2f996ff0bbf508c7ccd83344ea3aece9abc46fc5ba9aabd025093e48ccfc4c7bc350c88317f4e207f09352b71dc721edbc7d311f39c5bb947317fca49779f349c258c6093257038117888533b91d3cef8256e9e9", 16).unwrap(),
+            BigInt::from_str_radix("d20e2b8635530aa12bf2e4f1d5c35790528169c8a773e3cfb6c9471e9c47347c08612960494378e7ccad9661147826b83b5a5088f8c7b8c8e8f10789dc33836b4fb84d1a17b0365e30f8e2498c4c5baa0e4d6d7337692a5fdafaf61ab748a2aa968247c265b217a52b21ed7c88472e94693d4b5dbbbe04a0354f30d6628e6b1842b96c4c76662002c6053cdcb21cfcb8515842ba77916a60f36a7273a40bff896bdfedaccd883f17b8e4533f9b680ccc89bc1316dcbcb8f31b580c644b2fc36f918f4e8e9c2ecd6931236f4c1789a8399ca75216f97b36c0ad4b5145b9b2bd3f6135f156edecffb4e56de387a6248af17daca624d5ddbacc046b23f0d193d802", 16).unwrap(),
+        );
+
+        let h = BigInt::from_str_radix("2062d017d762f8b88c245d7e241805df84ae29232fb36f6138590a42c6b47d4a81ff072ce7e6d8741f8b56fe8165642754765fc483a730de3b4860674ccdbe060c3a7e810ef3e3f4b28dd095fe1f61ae20c588aef0b06455389eef64ec927ed37a46ca95ec48ced4abcfa74611e29065487178efad87f494d55ab3e152a0cd8923219c9ffc69c94ecafbcede1e267e55cc9051ea6b9e99062393147ea39296c9d0312a7f4e8017fda8dbab3f029849eeba601aac5bc74fcd47fe9e9ce1510df902852ddbb1180566fe3188d646a281f89421782d3cc076996f3cfef8999827c7630a4d90290dcae6d683f223d1d7f85f91a096720e44ba05c8b2b62b27f5a31a", 16).unwrap();
+        let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
+        let g = BigInt::from(2);
+        let params = ElGamalParameters { p, g };
+        let public_key = ElGamalPublicKey { h, params };
+
+        let a0: BigInt = BigInt::from_str_radix("c3bc793e8b7fc188a7926b92eb74c96909d0ab3496366f95abb22ff3daa8536fd2c0d13e8aa341d055e2c776c5fb81d9ddfdc605c3c0b0c1ab67519cf7ebfafb746f46f421405e9e98c5c4d44658422f4238d282d40891784d19ae824ac607539be6a14f3f1117a93ed7d04ea8dc5589c6671b82a830b77cd0419e0ac19bd161d06127a7a76877cc254c87648dd7e7073e6564e3088e73bc62d760b17bbe41a472c0a510599cd9ce2173a1d937f81fd1b5f171101d337ee7aeed96cb7402f245003d8ec9a366e05f500c429fe20e2a4338e736710750c1739293661847b54e79239998633928774d248de99d68f2cacaae741c6d216c52da5110f715e491e2ee", 16).unwrap();
+        let a1: BigInt = BigInt::from_str_radix("da7ddaf5506bca2e3f383176d4b84d147e800888645acb69e373347d57e9e699d328cd3a0be62d582c006af421960047cbf8ee21e6a7646ba57e471d309c96f6b1270eabd5cc4c3f5f078f1e3970e7c8a57a9aeabdb74581ce344e4ec31551b8c0d77039b8d560fa8445c5ff3defeae44c2368441c495fe4f92d43812ac91e7a41d9ff126bb3ec8621d684ef8a497fd72859e57ff6e5a5d26ad6d288df3a145e7cdcd1fe5394d8d735f4b540931527b8a703e682f70fb95ec94b0d914a7f1374eab6efea22e1c4740b0bc258a38b48ebfbe49527d7764c5a3ca6abe40924c1832bfd075cd6d41d7f0d9db6bd5887bae422064c6c7b5f205203606c9b601036d3", 16).unwrap();
+        let b0: BigInt = BigInt::from_str_radix("fdbd54ee2ef8d02abeec203565d653f1769e0078cb9eb6bbdd5293beb74a6bd8cd8ea239ccc80952cf31fde220ac79eab48ff5fd605195217cc42a280eb3c704ab747d60e032d9798384e1d50a58c2038c44a1d152946c90be0d54c0e56cc0839cc0aaefef64823420e4644a61a5e41ebf5e373c38692a6cb202d6d131d5527517e103c05ac1df2712491aa79a4b118bd49c0eb15329fbd2f92078be237a76c4c21e352ed3ff74cc6406c702b75489950962b447751e8b2cdff3d306e89a61667a9f8fbcd8dd466a8b84706d71538f125972789f1b85e9e47e226df2358f4b626baedacd4b38df54d104d2fde103cc13f0d01519a41975eac449087c0e705319", 16).unwrap();
+        let b1: BigInt = BigInt::from_str_radix("735864d61864e44266d8f60d877bafe3bba150294db4bfbf5d67984cc5c860d4bdf0495fb79986cf538c58bb984bf3e8d144215cb744b9bd350ca33c509d40aa7c84c357dae4a39f062b12bdb1294e2fff4fb2ae0b2e37e20f1c9edd5100d7317a0f99d842425d0f33802bb861e6a9acf0c33de1011526863a01652d4f0b74ac7a411dd66dee76d67180ee91d044928c679f0222b8230e89d983e446df6a489ef556828c1a8b8360d90d2282132caab89e5ed247fb684718d7dea23259e5eff4cbae47f6d14c3647da2ea1d371cefd1d92cd5815f7be644fd0f161ff03bf8c8bdac626af1fd1e2ed2fa1a4f8ab4ee5ca98f5aca6b86121befe19ae6ac0ad5739", 16).unwrap();
+        let c0: BigInt = BigInt::from_str_radix("8", 16).unwrap();
+        let c1: BigInt = BigInt::from_str_radix("10e", 16).unwrap();
+        let r0: BigInt = BigInt::from_str_radix("715ae5231d38b5a7e1cbcaedd78fd18eb3327d3f62a897b593b042895228750787a9ecf6d02f06adc23af35356249048777f3d7c71eb7cb7255e13e82af1645b89eb8d50e5ce6a8d3e2eeacf3f1f3c83d8e85c9ec0aea5b121ed2ce819e5864295f227fd2685bd1e529bc37995bb7e54f74572ed9beec8b7da9785b73202118a4d4851ec3e5ea613538731f4f7b713d3dc1dc40fc6626b2aee0cc6cf67110aad903564e449c6d3d83f7130201caa00a85738e6c7c42267118613812a1d15cf1f7b9271e1a928b7f0786dd237a855ae85f67724e377d79cd37afa25e1d2bcb9b35ecb9a9ca9157b65350e14ab7f8de80f4d309fb0d9f88ed2c86533c6740cc4", 16).unwrap();
+        let r1: BigInt = BigInt::from_str_radix("4f316fda80c144090ed90ae91bbd682ea5357732a19a63241b141fb28cc9d953d33061acf141e78b2a0dcac228ba635b54fb6dd1bccc30fa2f2733f0e0f9dde7ffd32ef16ac0355a4067ca3c66d656acac868186bc14478a08505c16ecafdc9b0136aca223f18e1b456034e9c61d666833ce3308b0918a4d76eb3e6dd59d267bc4433adc9755356565574f0990a6ad997dfdc2ff6f6d1155bf99e3af45f90ee7bd48995d098681dda81db6da0f7635e504f163a6b95b6b249b403fd0c4177e5268622819c802b28ddec3e6234ab202412795f5a9778a0b42edd12b4ec7274ef0d7543b4322d9a05d4f5078569f7ed929bd6380f336d668332115da065d76ad86", 16).unwrap();
+
+        let proof = BallotProof {
+            a0,
+            a1,
+            b0,
+            b1,
+            c0,
+            c1,
+            r0,
+            r1,
+        };
+
+        let verifies = proof.verify(&encrypted1, &public_key, &unique_id, true);
+        assert!(verifies);
+    }
 
     #[test]
     fn test_ballot_proof_0_generated_in_js_lib() {
@@ -84,7 +185,7 @@ mod tests {
             "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
             16,
         )
-        .unwrap();
+            .unwrap();
         let encrypted0 = Cipher(
             BigInt::from_str_radix("35d829e6a73d25b97543c274db920aa35d19df7d46c6a5e8a71b20eed7e96999361ce14e9497b5142bea4f9ef311ae8da5a5e5f56d058010779805636e71b60af2aa8da1e516b238cfb0ceaa8aed238990e5def444658cbfcc2a660a0daed72f", 16).unwrap(),
             BigInt::from_str_radix("2054048385028a5fc06e1a13a9d65dbe65cc8d2923c12c530861d57d36af6c39830379cf5644b7674632cea381c898f1ceefb81f85acb799e548e5e0fbcdb3c0e54b7d69c2747cd46556d517d0569a7b266dc7287816637195d134d77af14ff5", 16).unwrap(),
@@ -117,7 +218,7 @@ mod tests {
             r1,
         };
 
-        let verifies = proof.verify(&encrypted0, &public_key, &unique_id);
+        let verifies = proof.verify(&encrypted0, &public_key, &unique_id, false);
         assert!(verifies);
     }
 
@@ -127,7 +228,7 @@ mod tests {
             "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
             16,
         )
-        .unwrap();
+            .unwrap();
 
         let h = BigInt::from_str_radix("4e26ca22986f59a6d2161ca69d377609db78bb89eb3c485c34d6ed8eec073ad726aab29727c6a84eb3e2bcd9c1f982e25db989465e8b834fb5abefc9ef31a019e6622db5a5ffd5910f963c3e9c6b144a75f9eb27c42f9e9f518de045ef34f654", 16).unwrap();
         let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a63a3620ffffffffffffffff", 16).unwrap();
@@ -160,7 +261,7 @@ mod tests {
             r1,
         };
 
-        let verifies = proof.verify(&encrypted1, &public_key, &unique_id);
+        let verifies = proof.verify(&encrypted1, &public_key, &unique_id, false);
         assert!(verifies);
     }
 
@@ -170,7 +271,7 @@ mod tests {
             "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
             16,
         )
-        .unwrap();
+            .unwrap();
 
         let h = BigInt::from_str_radix("6719296bcbb4d866bb644d80f44b522b5ef782f9276bc39beb929852fdb02dd6b517f1f0a03a189269654b5bda33dba81cb3830dac152dc9e15e72bbc6427b869d2775de321155671a5a553b1fe80f4276f0f4f0ce42073ab28f78e6c579b2c34bd6f55ee7d21ad5138284dc84db79fca9c2da817f195db4b3bef14e0e2786478fe4e4a40a001aee49c7a9e1bef202e0c142c2c741d13a05969d66cba166e4dbf35521841415ec104246c65606fcccc86652bf5cdbbd79015f8fcf15589c90a52f8ed554fdde305e475f4c4b4f3c0ebde0d2bfabd2c75925b46a25398b94edb9ca0510133fdc7cf517da1a9871ab86b39e135e84bb46964473955a8f407accd8", 16).unwrap();
         let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
@@ -203,7 +304,7 @@ mod tests {
             r1,
         };
 
-        let verifies = proof.verify(&encrypted1, &public_key, &unique_id);
+        let verifies = proof.verify(&encrypted1, &public_key, &unique_id, false);
         assert!(verifies);
     }
 }
