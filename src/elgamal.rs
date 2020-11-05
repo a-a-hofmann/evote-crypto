@@ -3,6 +3,7 @@ use core::ops::{Div, Mul, Sub};
 
 use num_bigint::BigInt;
 use num_traits::Signed;
+use rayon::prelude::*;
 
 use crate::math;
 use crate::math::mod_div;
@@ -106,7 +107,7 @@ pub struct ElGamal;
 impl ElGamal {
     /// To keep the function easily portable to the BC/no_std ecosystem, the nonce is injected into the algorithm.
     pub fn encrypt(message: &BigInt, nonce: &BigInt, public_key: &ElGamalPublicKey) -> Cipher {
-        assert!(public_key.params.belongs_to_group(nonce));
+        assert!(public_key.params.belongs_to_group(nonce), "Nonce too big: {}", nonce.to_str_radix(16));
 
         let modulus = &public_key.params.p;
         let generator = &public_key.params.g;
@@ -131,10 +132,49 @@ impl ElGamal {
         math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 
+    pub fn decrypt_with_heuristic(cipher: &Cipher, private_key: &ElGamalPrivateKey, upper_bound: u64) -> BigInt {
+        let Cipher(c, d) = cipher;
+
+        let modulus = private_key.params.p.clone();
+        let sk = private_key.x.clone();
+
+        let generator = private_key.params.g.clone();
+        let c_to_sk = c.modpow(&sk, &modulus);
+        let g_to_m = math::mod_div(&d, &c_to_sk, &modulus).expect("Cannot find mod inverse");
+
+        math::brute_force_dlog_with_heuristic(&g_to_m, &generator, &modulus, upper_bound)
+    }
+
     pub fn add(cipher1: &Cipher, cipher2: &Cipher, params: &ElGamalParameters) -> Cipher {
         let Cipher(c1, d1) = cipher1;
         let Cipher(c2, d2) = cipher2;
         Cipher(c1 * c2 % &params.p, d1 * d2 % &params.p)
+    }
+
+    pub fn add_many(ciphers: Vec<Cipher>, params: &ElGamalParameters) -> Cipher {
+        let mut c = BigInt::from(1);
+        let mut d = BigInt::from(1);
+        for cipher in ciphers.iter() {
+            c *= &cipher.0;
+            d *= &cipher.1;
+        }
+
+        c = c % &params.p;
+        d = d % &params.p;
+
+        Cipher(c, d)
+    }
+
+    pub fn add_parallel(ciphers: Vec<Cipher>, params: &ElGamalParameters) -> Cipher {
+        let c = BigInt::from(1);
+        let d = BigInt::from(1);
+        let c = Cipher(c, d);
+        let sum: Cipher = ciphers
+            .par_iter()
+            .cloned()
+            .reduce(|| c.clone(), |cipher1, cipher2| Cipher(&cipher1.0 * &cipher2.0 % &params.p, &cipher1.1 * &cipher2.1 % &params.p));
+
+        sum
     }
 
     pub fn sub(cipher1: &Cipher, cipher2: &Cipher, params: &ElGamalParameters) -> Cipher {
@@ -182,8 +222,12 @@ impl ElGamal {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
+    use indicatif::ProgressBar;
     use num_bigint::BigInt;
     use num_traits::Num;
+    use rayon::prelude::*;
 
     use super::*;
 
@@ -516,5 +560,52 @@ mod tests {
         println!("{}", rhs.to_str_radix(10));
 
         assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn test_many_votes() {
+        use indicatif::ParallelProgressIterator;
+
+        let x = BigInt::from_str_radix("c308aea0cd4859a06964f3aef8193705668887e889b259dcb3475cf793c3ede229ebef203716f56d5aa46f8ddf601da5d34468a1e006b61fd412d56dc41ef01e5144d150c62e3d51b6824ed7514d1a36bce7abbea0501a093f2348d6e6bdfebb0dcebc789ca352b9874fd1519deb85e13af2879394e5ac62e252cac530b6b98da77d7b64c56156ea77f22416815f44e90a879e020ed543f63c03323f2e42d3d14e1c01b7e0c1bad4e289f274ee73f253622c671c0a02688f3cf98607236a99d1f83bde87c4a53ed6910d21501c926d8e492406aa42ef6e0559dc49ca1cd41821f80bcea45d52306c4833a2fd0a73606b714b5d20c4fbaa43d1c94c09fa614a", 16).unwrap();
+        let h = BigInt::from_str_radix("61cb62ec3387adbdf2f01c6169f6493f86890c6779f92f375426ea69c7f7e79baef2ad7319441342690e4dbb428634270a7081571717fc8d997f1c4c7c92f84566c53c123092e4ab1e9df18ddbb9e5f98ca386d8b19d6e65c116ad12bfa07506f57d1890d7a08f8fb1fc0f354d4f8cebee9fc81c06502c8fac80e67fa00fffe14ee3b311a81a20217809e56831a1050e3a61724ecf8682625452ebc290d1d4aca22c29380039e6181bc0e2df19b9a8f76bd6e3a0ea5e089b9182840b661efb9b1ce3ca3f39be2025dcbce2d3f2e56a97f637c79bca16da9e4edb6ebb02564794465cf15d09cdea5f24055016e8bf3d9652eea75df5a4d49e62819e7f2da70f6b", 16).unwrap();
+        let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
+        let g = BigInt::from(2);
+        let params = ElGamalParameters { p, g };
+        let q = &params.q();
+        let private_key = ElGamalPrivateKey { x, params: params.clone() };
+        let public_key = ElGamalPublicKey { h, params: params.clone() };
+
+        let n: u64 = 100000;
+        let pb = ProgressBar::new(n);
+        pb.set_draw_delta(n as u64 / 100); // redraw every 1% of additional progress
+
+        let before = Instant::now();
+
+        let nonces: Vec<BigInt> = vec![1; n as usize].par_iter().enumerate().map(|(index, _)| BigInt::from(index % q + 1)).collect();
+
+        let vote = BigInt::from(1);
+        let ciphertext = ElGamal::encrypt(&vote, &BigInt::from(3), &public_key);
+        let mut ciphers: Vec<Cipher> = nonces.par_iter().progress_with(pb).map(|_| ciphertext.clone()).collect();
+        ciphers[1] = ElGamal::encrypt(&BigInt::from(0), &BigInt::from(7), &public_key);
+
+        println!("Computed ciphers: {}", ciphers.len());
+        println!("Elapsed time: {:.2?}", before.elapsed());
+
+        assert_eq!(ciphers.len(), n as usize);
+        assert_eq!(ciphers[0], ciphertext);
+        assert_eq!(ciphers[ciphers.len() - 1], ciphertext);
+
+        println!("Compute sum");
+
+        let before_sum = Instant::now();
+        let sum = ElGamal::add_parallel(ciphers.clone(), &params);
+        println!("Elapsed time sum: {:.2?}", before_sum.elapsed());
+
+        let before_decrypt = Instant::now();
+        let plaintext = ElGamal::decrypt_with_heuristic(&sum, &private_key, n);
+        println!("Elapsed time decrypt: {:.2?}", before_decrypt.elapsed());
+        assert_eq!(plaintext, BigInt::from(n - 1));
+
+        println!("Total elapsed time: {:.2?}", before.elapsed());
     }
 }
