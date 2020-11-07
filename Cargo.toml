@@ -28,6 +28,11 @@ indicatif = {version = "*", features = ["rayon"]}
 
 [dev-dependencies]
 hex-literal = { version = "0.3.1", default-features = false }
+criterion = { version = "0.3", default-features = false }
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [features]
 std = [
