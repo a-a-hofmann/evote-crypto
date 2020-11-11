@@ -167,8 +167,8 @@ impl ElGamal {
             d *= &cipher.1;
         }
 
-        c = c % &params.p;
-        d = d % &params.p;
+        c %= &params.p;
+        d %= &params.p;
 
         Cipher(c, d)
     }
