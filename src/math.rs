@@ -60,8 +60,14 @@ pub fn brute_force_dlog(target: &BigInt, generator: &BigInt, modulus: &BigInt) -
 /// Solve dlog mod `modulus` by brute force:
 /// Attempts to find a value `i` such that `target = generator^i % modulus`
 ///
-pub fn brute_force_dlog_with_heuristic(target: &BigInt, generator: &BigInt, modulus: &BigInt, upper_bound: u64) -> BigInt {
-    let found = (0..upper_bound).into_par_iter()
+pub fn brute_force_dlog_with_heuristic(
+    target: &BigInt,
+    generator: &BigInt,
+    modulus: &BigInt,
+    upper_bound: u64,
+) -> BigInt {
+    let found = (0..upper_bound)
+        .into_par_iter()
         .find_first(|item| &generator.modpow(&BigInt::from(*item), &modulus) == target);
 
     BigInt::from(found.unwrap())

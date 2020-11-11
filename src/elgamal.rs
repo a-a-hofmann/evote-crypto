@@ -107,7 +107,11 @@ pub struct ElGamal;
 impl ElGamal {
     /// To keep the function easily portable to the BC/no_std ecosystem, the nonce is injected into the algorithm.
     pub fn encrypt(message: &BigInt, nonce: &BigInt, public_key: &ElGamalPublicKey) -> Cipher {
-        assert!(public_key.params.belongs_to_group(nonce), "Nonce too big: {}", nonce.to_str_radix(16));
+        assert!(
+            public_key.params.belongs_to_group(nonce),
+            "Nonce too big: {}",
+            nonce.to_str_radix(16)
+        );
 
         let modulus = &public_key.params.p;
         let generator = &public_key.params.g;
@@ -132,7 +136,11 @@ impl ElGamal {
         math::brute_force_dlog(&g_to_m, &generator, &modulus)
     }
 
-    pub fn decrypt_with_heuristic(cipher: &Cipher, private_key: &ElGamalPrivateKey, upper_bound: u64) -> BigInt {
+    pub fn decrypt_with_heuristic(
+        cipher: &Cipher,
+        private_key: &ElGamalPrivateKey,
+        upper_bound: u64,
+    ) -> BigInt {
         let Cipher(c, d) = cipher;
 
         let modulus = private_key.params.p.clone();
@@ -169,10 +177,15 @@ impl ElGamal {
         let c = BigInt::from(1);
         let d = BigInt::from(1);
         let c = Cipher(c, d);
-        let sum: Cipher = ciphers
-            .par_iter()
-            .cloned()
-            .reduce(|| c.clone(), |cipher1, cipher2| Cipher(&cipher1.0 * &cipher2.0 % &params.p, &cipher1.1 * &cipher2.1 % &params.p));
+        let sum: Cipher = ciphers.par_iter().cloned().reduce(
+            || c.clone(),
+            |cipher1, cipher2| {
+                Cipher(
+                    &cipher1.0 * &cipher2.0 % &params.p,
+                    &cipher1.1 * &cipher2.1 % &params.p,
+                )
+            },
+        );
 
         sum
     }
@@ -570,8 +583,14 @@ mod tests {
         let g = BigInt::from(2);
         let params = ElGamalParameters { p, g };
 
-        let private_key = ElGamalPrivateKey { x, params: params.clone() };
-        let public_key = ElGamalPublicKey { h, params: params.clone() };
+        let private_key = ElGamalPrivateKey {
+            x,
+            params: params.clone(),
+        };
+        let public_key = ElGamalPublicKey {
+            h,
+            params: params.clone(),
+        };
 
         let n: u64 = 1_000;
         let pb = ProgressBar::new(n);
@@ -585,8 +604,12 @@ mod tests {
 
         let ciphertext0 = ElGamal::encrypt(&vote0, &nonce, &public_key);
         let ciphertext1 = ElGamal::encrypt(&vote1, &nonce, &public_key);
-        let ciphers0: Vec<Cipher> = iter::repeat(ciphertext0.clone()).take((n / 2) as usize).collect::<Vec<_>>();
-        let ciphers1: Vec<Cipher> = iter::repeat(ciphertext1.clone()).take((n / 2) as usize).collect::<Vec<_>>();
+        let ciphers0: Vec<Cipher> = iter::repeat(ciphertext0.clone())
+            .take((n / 2) as usize)
+            .collect::<Vec<_>>();
+        let ciphers1: Vec<Cipher> = iter::repeat(ciphertext1.clone())
+            .take((n / 2) as usize)
+            .collect::<Vec<_>>();
         let ciphers: Vec<Cipher> = [ciphers0, ciphers1].concat();
         assert_eq!(ciphers[0], ciphertext0);
         assert_eq!(ciphers[(n - 1) as usize], ciphertext1);
