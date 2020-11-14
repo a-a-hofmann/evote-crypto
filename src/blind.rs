@@ -11,8 +11,8 @@ pub struct RSAPublicComponent {
 
 pub fn verify_signature(
     message: Vec<u8>,
-    signature: BigUint,
-    rsa_public_component: RSAPublicComponent,
+    signature: &BigUint,
+    rsa_public_component: &RSAPublicComponent,
 ) -> bool {
     let message = hash_bytes(vec![&message]);
 
@@ -38,7 +38,7 @@ mod tests {
         let signature = BigUint::from_str_radix("3da5fefe80ee46dc35cc246a2925d7275cac1724230beeb7a9c46defecdc68a51e8f1de4a3446e1eee8fde610d87485a55f92c33f6924f711588959ca7e3bce7a9c8b004b0adf821a84978fe7b8a4841405ba9f2c583507b1f420fa2e3659ef30f2f7f1532a44e4f1b19afc0d6fcf5686e5a1d4b27dc797e53d9e3b1ebc2d3a0a4696f6e9c2f7974b83c3da2a39b8f1b86634a81dc08153a92ee4a1569fa6fdc2530fedc8ade5c53ec08643d8ae36fa39656eb7913d8cf02c9763bd942e4ec3ccc27959cf5bce05bad4886736c597d4baa84371aa8435504060e38ada303acc581c290a98ff57dbf39f639ed4f13cfb91657dc24405a9d630e03375955cc2ef0", 16).unwrap();
         let rsa_component = RSAPublicComponent { exponent, modulus };
 
-        let result = verify_signature(b"Hello Chaum!".to_vec(), signature, rsa_component);
+        let result = verify_signature(b"Hello Chaum!".to_vec(), &signature, &rsa_component);
         assert_eq!(result, true);
     }
 
@@ -51,7 +51,7 @@ mod tests {
 
         let address = b"0xae3a3e13f0028a514bab665e1d207bea3507a14690fd5bc887e30abcd9f99d71";
 
-        let result = verify_signature(address.to_vec(), signature, rsa_component);
+        let result = verify_signature(address.to_vec(), &signature, &rsa_component);
         assert_eq!(result, true);
     }
 
@@ -64,7 +64,7 @@ mod tests {
 
         let address = b"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
-        let result = verify_signature(address.to_vec(), signature, rsa_component);
+        let result = verify_signature(address.to_vec(), &signature, &rsa_component);
         assert_eq!(result, true);
     }
 }

@@ -1,16 +1,17 @@
 use core::iter;
 
+use criterion::measurement::WallTime;
 use criterion::{
-    AxisScale, BenchmarkGroup, BenchmarkId, Criterion, criterion_group, criterion_main,
+    criterion_group, criterion_main, AxisScale, BenchmarkGroup, BenchmarkId, Criterion,
     PlotConfiguration, SamplingMode, Throughput,
 };
-use criterion::measurement::WallTime;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, BigUint};
 use num_traits::Num;
+use rayon::prelude::*;
 
+use crypto::blind::{verify_signature, RSAPublicComponent};
 use crypto::elgamal::{Cipher, ElGamal, ElGamalParameters, ElGamalPrivateKey, ElGamalPublicKey};
 use crypto::proof::ballot::BallotProof;
-use rayon::prelude::*;
 
 fn crypto_material() -> (
     ElGamalParameters,
@@ -195,8 +196,58 @@ fn bench_votes_decryption(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_voter_registration(c: &mut Criterion) {
+    let exponent = BigUint::from_str_radix("10001", 16).unwrap();
+    let modulus = BigUint::from_str_radix("e97a728532da5af885d0fbfc2dbe97854eb7765e209ed8c426092c8c9f22a60bf29018a8c8a86f7957e5dba77f95bfcee901fc8d5a633b60d0a6bb7bc7f6bb63edf229872d223d87b133875161c2502c099a2731a6567346e339eb5fa73460516784eaa1c96eb37270744a152c8908a1cc73aab10608123861b8a466abd5f6f230a11d935675659bee231c61f763f13b192181d40aba657da2693b07af818e472919dbfc756fc2eb59f4e6cc077e6cd2621f3688e4af6a4567d2b9cf55261a8b92733decbbd48ea9a1603c7dd9ed89244bfc54e1007bb429392f9577615dad735b89e3b3f0dbd5d30becbc0ceedd4d1071dba4f141f6961f14cbc671c7babbdd", 16).unwrap();
+    let signature = BigUint::from_str_radix("d53aeb427e94c03ddd7eb38454e3d32ef04abf0a154bd819e4b993e9f648c755ea921cc2070bf67387b089946f3814c1e13436dd52885b697854545e5d3d9442cb74f9be6393f6def6513be89362e7e08f8fbbd0d9c2932612f16d2b1275dea725d33125a6859830852866b35e0992fe1450f59d8fb2f06b16f1f781285fa46eac566435057cbacd0ebf8e53822f5f166cb6061437fa7442351645fe1e46ec7abe71a83048e5da649654337699d0882509d154448c07db652575c8f5005aa031a57262df9c54bc453f2534e6d93277e3f269af4f36a3a60414eef83f973a8b630073d2e827e8e7c0214dbc038926964e40c4fc22f3081072c81bfff53da69352", 16).unwrap();
+    let rsa_component = RSAPublicComponent { exponent, modulus };
+
+    let address = b"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY".to_vec();
+    let result = verify_signature(address.clone(), &signature, &rsa_component);
+    assert_eq!(result, true);
+
+    let n = [1000, 5000, 10_000, 50_000, 100_000, 500_000, 1_000_000];
+
+    let mut group = prepare_benchmark(
+        c,
+        "Voter registration (RSA Blind signatures)",
+        SamplingMode::Flat,
+        AxisScale::Logarithmic,
+    );
+
+    for count in n.iter() {
+        let signatures: Vec<BigUint> = iter::repeat(signature.clone())
+            .take(*count)
+            .collect::<Vec<_>>();
+
+        println!(
+            "Verifying {} signatures. Count {}",
+            signatures.len(),
+            *count
+        );
+
+        group.throughput(Throughput::Elements(*count as u64));
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::from_parameter(count),
+            &signatures,
+            |b, signatures| {
+                b.iter(|| {
+                    signatures.par_iter().for_each(|signature| {
+                        verify_signature(address.clone(), &signature, &rsa_component);
+                    })
+                })
+            },
+        );
+    }
+    group.finish();
+}
+
 fn bench_ballot_proofs(c: &mut Criterion) {
-    let unique_id = BigInt::from_str_radix("f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600", 16).unwrap();
+    let unique_id = BigInt::from_str_radix(
+        "f6357c14c3d573f308c3b6cd028d284a7cc332ce96ab2c2836a56cb3a0f91600",
+        16,
+    )
+    .unwrap();
     let x = BigInt::from_str_radix("75aa20443640a0bfe436f46e20db97aa698d1632fbfe989f3b01e32ca74c753bdbe0946483aa65e39a5367330df1622500b9bf65cc65e09e29b283c4cc85ee81f6af783f622fb111a4beecd47df7c17918a38a8d4d50349047186f394e8a7fcc000777f216426cbd68a0284a286dca11e33717e54c343ab9464aa2a9d8a35bd744c9262c17dd62f8e2ba2886c890790f24f141ae3290c1d2f9edf2d70bdf3c4780d75446560059f74d67a32ee8cadae0335d66e842f53713cd4f37a728ff1da454861ee53b88c9b8f181ba85db54810eeae129a26f7f80ca077abcc7ba8b31a4084f5c9c0bfdf3f9aaf35775413fe70a07d7c7e441a45b1d0b4ae44837a5d7", 16).unwrap();
     let h = BigInt::from_str_radix("d69284b6368bc387f82cabc5e5a4a49c0a0a05f1108b26615df612ffd14f865b8a93a943f5d2d38a63395422cdc8f3e40ac13e8e5ccdb90772f93a925caf492faa4d8015b80627716936ddae4834a91b8086c5a5826a78534ca1c325233c5f51d90bdb05c322e9381b141c85b43d0a2e3edf9b4a99207cbd6597530c6e1afa907a829153f9f4da3a8c362efcbfb273d90653a6ec31fb076b439920509778c2df78030755369e19bde4cb723e1bb5f0831dcb25507ceb8004bd1a8b1e5cb6b4709e85299ef5b6de87cbafd267f9e337a8d2fbdfc9fa366459753a574d213bd2e2fb17d8680801174c02d436ed9d8a353d7381457647a2a03682b0958931acc8a1", 16).unwrap();
     let p = BigInt::from_str_radix("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aacaa68ffffffffffffffff", 16).unwrap();
@@ -252,16 +303,22 @@ fn bench_ballot_proofs(c: &mut Criterion) {
     );
 
     for count in n.iter() {
-        let proofs0: Vec<BallotProof> = iter::repeat(proof0.clone()).take(*count / 2)
+        let proofs0: Vec<BallotProof> = iter::repeat(proof0.clone())
+            .take(*count / 2)
             .collect::<Vec<_>>();
-        let proofs1: Vec<BallotProof> = iter::repeat(proof1.clone()).take(*count / 2)
+        let proofs1: Vec<BallotProof> = iter::repeat(proof1.clone())
+            .take(*count / 2)
             .collect::<Vec<_>>();
         assert_eq!(proofs0[0], proof0);
-        assert_eq!(proofs0.len(), *count/2 as usize);
+        assert_eq!(proofs0.len(), *count / 2 as usize);
         assert_eq!(proofs1[0], proof1);
-        assert_eq!(proofs1.len(), *count/2 as usize);
+        assert_eq!(proofs1.len(), *count / 2 as usize);
 
-        println!("Verifying {} ballot proofs. Count {}", proofs0.len() + proofs1.len(), *count);
+        println!(
+            "Verifying {} ballot proofs. Count {}",
+            proofs0.len() + proofs1.len(),
+            *count
+        );
         group.throughput(Throughput::Elements(*count as u64));
         group.sample_size(10).bench_with_input(
             BenchmarkId::from_parameter(count),
@@ -281,5 +338,5 @@ fn bench_ballot_proofs(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_ballot_proofs);
+criterion_group!(benches, bench_voter_registration);
 criterion_main!(benches);
