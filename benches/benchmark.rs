@@ -193,5 +193,5 @@ fn bench_votes_decryption(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_homomorphic_sum);
+criterion_group!(benches, bench_homomorphic_sum, bench_decrypt_many_votes, bench_votes_decryption());
 criterion_main!(benches);
