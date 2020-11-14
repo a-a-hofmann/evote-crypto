@@ -4,7 +4,7 @@ use crate::elgamal::{Cipher, ElGamalParameters, ElGamalPublicKey};
 use crate::hash::hash_args;
 use crate::math::mod_div;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct BallotProof {
     pub a0: BigInt,
     pub a1: BigInt,

@@ -34,14 +34,13 @@ name = "benchmark"
 harness = false
 
 [features]
-std = [
-    'num-bigint/std',
+default = ['num-bigint/std',
     'num-integer/std',
     'num-traits/std',
     'num-iter/std',
     'digest/std',
     'blake2/std',
-    'sha2/std'
-]
+    'sha2/std',
+    'rayon']
 
 bench = ["rayon"]
