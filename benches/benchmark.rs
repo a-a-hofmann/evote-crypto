@@ -276,5 +276,11 @@ fn bench_ballot_proofs(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_homomorphic_sum,  bench_voter_registration, bench_decrypt_many_votes, bench_ballot_proofs);
+criterion_group!(
+    benches,
+    bench_homomorphic_sum,
+    bench_voter_registration,
+    bench_decrypt_many_votes,
+    bench_ballot_proofs
+);
 criterion_main!(benches);
