@@ -106,7 +106,11 @@ pub struct ElGamal;
 impl ElGamal {
     /// To keep the function easily portable to the BC/no_std ecosystem, the nonce is injected into the algorithm.
     pub fn encrypt(message: &BigInt, nonce: &BigInt, public_key: &ElGamalPublicKey) -> Cipher {
-        assert!(public_key.params.belongs_to_group(nonce));
+        assert!(
+            public_key.params.belongs_to_group(nonce),
+            "Nonce too big: {}",
+            nonce.to_str_radix(16)
+        );
 
         let modulus = &public_key.params.p;
         let generator = &public_key.params.g;
@@ -135,6 +139,20 @@ impl ElGamal {
         let Cipher(c1, d1) = cipher1;
         let Cipher(c2, d2) = cipher2;
         Cipher(c1 * c2 % &params.p, d1 * d2 % &params.p)
+    }
+
+    pub fn add_many(ciphers: Vec<Cipher>, params: &ElGamalParameters) -> Cipher {
+        let mut c = BigInt::from(1);
+        let mut d = BigInt::from(1);
+        for cipher in ciphers.iter() {
+            c *= &cipher.0;
+            d *= &cipher.1;
+        }
+
+        c %= &params.p;
+        d %= &params.p;
+
+        Cipher(c, d)
     }
 
     pub fn sub(cipher1: &Cipher, cipher2: &Cipher, params: &ElGamalParameters) -> Cipher {
@@ -177,6 +195,53 @@ impl ElGamal {
         let g_to_m = math::mod_div(&d, &d_product, &modulus).expect("Cannot find mod inverse");
 
         math::brute_force_dlog(&g_to_m, &generator, &modulus)
+    }
+}
+
+#[cfg(any(test, feature = "bench"))]
+pub mod benchmark {
+    use alloc::vec::Vec;
+
+    use num_bigint::BigInt;
+    use rayon::prelude::*;
+
+    use crate::elgamal::{Cipher, ElGamal, ElGamalParameters, ElGamalPrivateKey};
+    use crate::math::{benchmark::brute_force_dlog_with_heuristic, mod_div};
+
+    impl ElGamal {
+        pub fn add_parallel(ciphers: Vec<Cipher>, params: &ElGamalParameters) -> Cipher {
+            let c = BigInt::from(1);
+            let d = BigInt::from(1);
+            let c = Cipher(c, d);
+            let sum: Cipher = ciphers.par_iter().cloned().reduce(
+                || c.clone(),
+                |cipher1, cipher2| {
+                    Cipher(
+                        &cipher1.0 * &cipher2.0 % &params.p,
+                        &cipher1.1 * &cipher2.1 % &params.p,
+                    )
+                },
+            );
+
+            sum
+        }
+
+        pub fn decrypt_with_heuristic(
+            cipher: &Cipher,
+            private_key: &ElGamalPrivateKey,
+            upper_bound: u64,
+        ) -> BigInt {
+            let Cipher(c, d) = cipher;
+
+            let modulus = private_key.params.p.clone();
+            let sk = private_key.x.clone();
+
+            let generator = private_key.params.g.clone();
+            let c_to_sk = c.modpow(&sk, &modulus);
+            let g_to_m = mod_div(&d, &c_to_sk, &modulus).expect("Cannot find mod inverse");
+
+            brute_force_dlog_with_heuristic(&g_to_m, &generator, &modulus, upper_bound)
+        }
     }
 }
 
